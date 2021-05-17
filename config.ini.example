@@ -1,0 +1,11 @@
+[app]
+secret_key=
+[db]
+user=
+password=
+host=
+port=
+database=
+[path]
+# path must contain only latin symbols for naming folders
+static_root=D:\Work\Python\pythonProject\venv\Scripts\weather\main\management\weather_stations_csv\
