@@ -14,7 +14,8 @@ Database structure described in models.py file. Aim of getting weather data migh
 
 How to use
 -------------------------
-Command in django: python manage.py get_weather
+```//Django command:
+python manage.py get_weather```
 
 Open config.example.ini and write connection to your postgresql database or don't do it if you want to save data in csv files.
 Write folder path for saving data it is necessarily. Delete .example from config name. If you want use another database check how to make it with [pyDAL][2].
