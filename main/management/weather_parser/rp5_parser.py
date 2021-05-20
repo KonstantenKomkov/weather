@@ -1,9 +1,11 @@
 from bs4 import BeautifulSoup
+from collections import deque
 from datetime import date
-from random import choice
-from requests import Session
+from random import randint, choice
+from requests import Session, get
 from requests.exceptions import HTTPError
 from requests.models import Response
+from time import sleep
 
 
 import main.management.weather_parser.rp5_ru_headers as rp5_ru_headers
@@ -69,7 +71,7 @@ def get_text_with_link_on_weather_data_file(current_session: Session, ws_id: int
                                             url: str):
     """ Function create query for site rp5.ru with special params for
         getting JS text with link on csv.gz file and returns response of query.
-        I use session and headers because site return text - 'Error #FS000;'
+        I use sessionw and headers because site return text - 'Error #FS000;'
         in otherwise.
     """
     phpsessid = None
@@ -105,3 +107,69 @@ def get_link_archive_file(text: str) -> str:
     else:
         raise ValueError(f'Ссылка на скачивание архива не найдена! Text: "{text}"')
     return link
+
+
+def get_pages_with_weather_at_place(static_root: str, pages: deque) -> deque:
+    """Function find all pages with link at a place or find all places in country and links for it."""
+
+    links, another = [], []
+
+    while pages:
+        response = get(pages.popleft())
+        soup = BeautifulSoup(response.text, 'lxml')
+        cells = soup.find_all(class_="countryMap-cell")
+
+        for cell in cells:
+            for a in cell.find_all('a'):
+                if a.text == '>>>':
+                    pages.append(f"https://rp5.ru{a['href']}")
+                elif a['href'].find('/Погода_в_') > -1:
+                    links.append(f'https://rp5.ru{a["href"]}')
+                else:
+                    another.append(a["href"])
+
+        for page in pages:
+            if page in links:
+                links.remove(page)
+    return links, another
+
+
+def get_link_type(links: list, static_root, delimiter) -> list:
+    """Function get links and types of weather stations by list of places links."""
+
+    def get_place(url: str) -> str:
+        place = url[url.find('Архив_погоды_в_')+15:].replace("_", " ")
+        return place
+
+
+    def write_line(static_root: str, line: list, delimiter: str):
+        with open(f"{static_root}places.txt", "a+", encoding="utf-8") as file:
+            file.write(f"{delimiter.join(map(str, line))}\n")
+
+    result = list()
+    current_session = Session()
+    for i, link in enumerate(links):
+        print(i)
+        if i % 100 == 0:
+            current_session = Session()
+        response = current_session.get(link)
+        soup = BeautifulSoup(response.text, 'lxml')
+        nav_panel_list = soup.find_all(class_="pointNaviCont")
+        for element in nav_panel_list:
+            if element.find(class_="iconarchive") is not None:
+                place = get_place(element.find("a")["href"])
+                if [place, element.find("a")["href"], 0] not in result:
+                    result.append([place, element.find("a")["href"], 0])
+                    write_line(static_root, [place, element.find("a")["href"], 0], delimiter)
+            elif element.find(class_="iconmetar") is not None:
+                place = get_place(element.find("a")["href"])
+                if [place, element.find("a")["href"], 1] not in result:
+                    result.append([place, element.find("a")["href"], 1])
+                    write_line(static_root, [place, element.find("a")["href"], 1], delimiter)
+            elif element.find(class_="iconwug") is not None:
+                place = get_place(element.find("a")["href"])
+                if [place, element.find("a")["href"], 2] not in result:
+                    result.append([place, element.find("a")["href"], 2])
+                    write_line(static_root, [place, element.find("a")["href"], 2], delimiter)
+        sleep(randint(1, 3))
+    return result

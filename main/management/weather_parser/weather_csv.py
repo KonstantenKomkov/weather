@@ -2,11 +2,11 @@ import main.management.weather_parser.classes as classes
 from datetime import datetime, timedelta
 
 
-def read_new_cities(static_root: str, delimiter: str) -> [classes.WeatherStation]:
+def read_csv_file(static_root: str, delimiter: str) -> [classes.WeatherStation]:
     """ Get data about new weather stations from csv file for site rp5.ru.
         Csv file structure:
-        - city;
-        - link on weathers archive page for city in site rp5.ru;
+        - place;
+        - link on weathers archive page for place in site rp5.ru;
         - data type (0 - weather station, 1 - metar, 2 - weather sensor);
         - last date of loaded information or nothing;
         - id of weather station or nothing;
@@ -22,7 +22,7 @@ def read_new_cities(static_root: str, delimiter: str) -> [classes.WeatherStation
             temp = line.strip('\n').split(delimiter)
             if len(temp) > 3:
                 stations.append(classes.WeatherStation(
-                    city=temp[0],
+                    place=temp[0],
                     link=temp[1],
                     data_type=int(temp[2]),
                     start_date=datetime.strptime(temp[3], '%Y-%m-%d').date() + timedelta(days=1)
@@ -34,7 +34,7 @@ def read_new_cities(static_root: str, delimiter: str) -> [classes.WeatherStation
                     longitude=temp[8] if temp[8] != 'None' else None,))
             else:
                 stations.append(classes.WeatherStation(
-                    city=temp[0],
+                    place=temp[0],
                     link=temp[1],
                     data_type=int(temp[2])))
     return stations

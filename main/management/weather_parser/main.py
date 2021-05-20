@@ -115,7 +115,7 @@ def get_all_data():
         from start date of observations to today or update data from date of last
         getting weather."""
     global current_session
-    wanted_stations = weather_csv.read_new_cities(STATIC_ROOT, DELIMITER)
+    wanted_stations = weather_csv.read_csv_file(STATIC_ROOT, DELIMITER)
 
     if wanted_stations:
 
@@ -128,17 +128,17 @@ def get_all_data():
 
             if station.start_date is None or station.number is None:
                 rp5_parser.get_missing_ws_info(current_session, SAVE_IN_DB, station)
-                print(f"Start getting data for {station.city} city with "
+                print(f"Start getting data for {station.place} with "
                       f"start date of observations {station.start_date}...")
             else:
-                print(f"Start getting data for {station.city} city with last "
+                print(f"Start getting data for {station.place} with last "
                       f"date of loading {(station.start_date-timedelta(days=1)).strftime('%Y.%m.%d')} ...")
 
             create_directory(station)
             start_year: int = station.start_date.year
             if SAVE_IN_DB:
                 country_id = db.executesql(queries.get_country_id(station.country))[0][0]
-                city_id = db.executesql(queries.get_city_id(station.city, country_id))[0][0]
+                city_id = db.executesql(queries.get_city_id(station.place, country_id))[0][0]
                 station.ws_id = db.executesql(queries.get_ws_id(station, city_id, country_id))[0][0]
                 db.commit()
             flag = False
@@ -159,3 +159,26 @@ def get_all_data():
                 print("Data was loaded!")
             current_session.close()
     return
+
+
+def create_csv_by_country(url):
+    """Function find all placec, links and types (SYNOP, METAR, weather sensors) on site rp5.ru for country."""
+    global STATIC_ROOT, DELIMITER
+
+    pages = deque([url])
+    links, another = rp5_parser.get_pages_with_weather_at_place(STATIC_ROOT, pages)
+
+    with open(f"{STATIC_ROOT}links.txt", "w", encoding="utf-8") as file:
+        for link in links:
+            file.write("%s\n" % link)
+
+    links, lines = [], []
+    with open(f"{STATIC_ROOT}links.txt", "r", encoding="utf-8") as file:
+        lines = file.readlines()
+
+    for line in lines:
+        links.append(line[:-1])
+
+    temp = links[6655:]
+
+    links_and_types = rp5_parser.get_link_type(temp, STATIC_ROOT, DELIMITER)
