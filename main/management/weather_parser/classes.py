@@ -16,12 +16,12 @@ class WeatherStation(BaseModel):
 
     # '%Y, %-m, %d' if you are using Unix system
     def __str__(self):
-        return f"WeatherStation(city=\"{self.place}\", link=\"{self.link}\", data_type={self.data_type}," \
+        return f"WeatherStation(place=\"{self.place}\", link=\"{self.link}\", data_type={self.data_type}," \
                f"number={self.number}, country=\"{self.country}\", ws_id={self.ws_id}, latitude={self.latitude}, " \
                f"longitude={self.longitude}, start_date=date({self.start_date.strftime('%Y, %#m, %d')}))"
 
     def __repr__(self):
-        return f"WeatherStation(city=\"{self.place}\", link=\"{self.link}\", data_type={self.data_type}," \
+        return f"WeatherStation(place=\"{self.place}\", link=\"{self.link}\", data_type={self.data_type}," \
                f"number={self.number}, country=\"{self.country}\", ws_id={self.ws_id}, latitude={self.latitude}, " \
                f"longitude={self.longitude}, start_date=date({self.start_date.strftime('%Y, %#m, %d')}))"
 
