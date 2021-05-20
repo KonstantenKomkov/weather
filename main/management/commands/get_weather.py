@@ -3,17 +3,10 @@ from main.management.weather_parser.main import *
 
 
 class Command(BaseCommand):
-    help = 'Displays current time'
+    help = 'Load weather from rp5.ru'
 
     def handle(self, *args, **kwargs):
         get_all_data()
+        self.stdout.write("Data was loaded")
 
-        # Should be call once before insert data to database
-        # db.executesql(queries.insert_wind_data)
-        # db.executesql(queries.insert_cloudiness_data)
-        # db.executesql(queries.insert_cloudiness_cl_data())
-        # db.commit()
-
-        # if SAVE_IN_DB:
-        #     load_data_to_database()
-        # self.stdout.write("Data was loaded")
+        # create_csv_by_country('https://rp5.ru/Погода_в_России')
