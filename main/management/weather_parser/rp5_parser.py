@@ -125,6 +125,8 @@ def get_pages_with_weather_at_place(static_root: str, pages: deque) -> deque:
                     pages.append(f"https://rp5.ru{a['href']}")
                 elif a['href'].find('/Погода_в_') > -1:
                     links.append(f'https://rp5.ru{a["href"]}')
+                elif a['href'].find('Погода_в_') > -1:
+                    links.append(f'https://rp5.ru/{a["href"]}')
                 else:
                     another.append(a["href"])
 
