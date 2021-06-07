@@ -34,7 +34,20 @@ and optional parameters (parser add it autonomous):
 - longitude weather station.
 
 [Cities.csv][3] contain some data as example. Put your data here.
+[places.txt][4] contain all weather sources for Russia at date 06.06.2021.
 
-[1]: https://rp5.ru/Погода_в_мире                                                  "rp5.ru"
-[2]: http://web2py.com/books/default/chapter/29/06/the-database-abstraction-layer  "pyDAL"
-[3]: https://github.com/KonstantenKomkov/rp5_weather/blob/master/static/cities.txt "cities.csv"
+If you want to find weather sources for other countries use:
+```//Django command:
+python manage.py find_sources REQUIRED_YOUR_LINK
+```
+
+That command find all weather sources but you need add link. Example for Russia:
+```//Django command:
+python manage.py find_sources https://rp5.ru/Погода_в_России
+```
+
+
+[1]: https://rp5.ru/Погода_в_мире                                                                            "rp5.ru"
+[2]: http://web2py.com/books/default/chapter/29/06/the-database-abstraction-layer                            "pyDAL"
+[3]: https://github.com/KonstantenKomkov/rp5_weather/blob/master/static/cities.txt                           "cities.csv"
+[4]: https://github.com/KonstantenKomkov/weather/blob/master/main/management/weather_stations_csv/places.txt "places.txt"
