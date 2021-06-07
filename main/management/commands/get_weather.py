@@ -6,7 +6,9 @@ class Command(BaseCommand):
     help = 'Load weather from rp5.ru'
 
     def handle(self, *args, **kwargs):
-        get_all_data()
-        self.stdout.write("Data was loaded")
-
-        # create_csv_by_country('https://rp5.ru/Погода_в_России')
+        try:
+            get_all_data()
+        except Exception as e:
+            self.stdout.write(f'Error is:\n{e}')
+        else:
+            self.stdout.write("Data was loaded")
