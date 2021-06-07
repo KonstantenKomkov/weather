@@ -5,6 +5,7 @@ from random import randint
 from time import sleep
 import zlib
 import configparser
+from collections import deque
 
 
 import main.management.weather_parser.classes as classes
@@ -162,7 +163,7 @@ def get_all_data():
 
 
 def create_csv_by_country(url):
-    """Function find all placec, links and types (SYNOP, METAR, weather sensors) on site rp5.ru for country."""
+    """Function find all places, links and types (SYNOP, METAR, weather sensors) on site rp5.ru for country."""
     global STATIC_ROOT, DELIMITER
 
     pages = deque([url])
@@ -179,6 +180,4 @@ def create_csv_by_country(url):
     for line in lines:
         links.append(line[:-1])
 
-    temp = links[6655:]
-
-    links_and_types = rp5_parser.get_link_type(temp, STATIC_ROOT, DELIMITER)
+    links_and_types = rp5_parser.get_link_type(links, STATIC_ROOT, DELIMITER)
