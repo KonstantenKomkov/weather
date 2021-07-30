@@ -61,7 +61,7 @@ for cities.csv file contain unique links of your finded stations.
 
 How to use Yandex API
 -------------------------
-Find main -> example directory and change {your_api_key} in reverse_geocode.html. Open than file in browser. And copy token, id to config.ini, you find that in developers settings -> network -> JS -> click on the map for callback -> Request URL string will contain token and id. Also you need to add your login (everything up to the symbol @ in your yandex email) and password.
+Find main -> example directory and change {your_api_key} in reverse_geocode.html. Open than file in browser. And copy token, id to config.ini, you find that in developers settings -> network -> JS -> click on the map for callback -> Request URL string will contain token and id, Request Headers will contain cookie - change cookie in yandex_headers.py. Also you need to add your login (everything up to the symbol @ in your yandex email) and password.
 
 [1]: https://rp5.ru/Погода_в_мире                                                                            "rp5.ru"
 [2]: http://web2py.com/books/default/chapter/29/06/the-database-abstraction-layer                            "pyDAL"
