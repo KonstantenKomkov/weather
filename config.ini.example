@@ -1,11 +1,11 @@
 [app]
-secret_key=
+secret_key=django-insecure-...
 [db]
-user=
-password=
-host=
-port=
-database=
+user=postgres
+password=your_password
+host=127.0.0.1
+port=5432
+database=database_name
 [path]
 # path must contain only latin symbols for naming folders
 static_root=D:\Work\Python\pythonProject\venv\Scripts\weather\main\management\weather_stations_csv\
@@ -14,3 +14,7 @@ login=
 pass=
 api_key=
 token=
+# like id_123...
+id=
+[csv]
+delimiter=#
