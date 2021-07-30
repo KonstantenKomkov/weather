@@ -36,7 +36,8 @@ and optional parameters (parser add it autonomous):
 - country;
 - id weather station if you are using database;
 - latitude weather station;
-- longitude weather station.
+- longitude weather station;
+- metar (0 if SYNOP/ value if metar).
 
 [Cities.csv][3] contain some data as example. Put your data here.
 [places.txt][4] contain all weather sources for Russia at date 17.07.2021.
