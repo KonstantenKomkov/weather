@@ -3,7 +3,8 @@ from .models import *
 
 
 admin.site.register(Country)
-admin.site.register(City)
+admin.site.register(Region)
+admin.site.register(Place)
 admin.site.register(WeatherStation)
 admin.site.register(WindDirection)
 admin.site.register(Cloudiness)

@@ -26,19 +26,20 @@ def insert_cloudiness_cl_data():
 
 
 def get_country_id(country):
+    print(country)
     return "WITH s as (SELECT id, \"name\" FROM countries WHERE \"name\" = '%(country)s'), i as (INSERT INTO " \
            "countries (\"name\") SELECT '%(country)s' WHERE NOT EXISTS (SELECT 1 FROM s) RETURNING id) SELECT id " \
            "FROM i UNION ALL SELECT id FROM s" % {'country': country}
 
 
-def get_city_id(city, country_id):
-    return "WITH s as (SELECT id, \"name\", country_id FROM cities WHERE \"name\" = '%(city)s' and country_id = " \
-           "%(country_id)i), i as (INSERT INTO cities (\"name\", country_id) SELECT '%(city)s', %(country_id)i " \
+def get_city_id(place, country_id):
+    return "WITH s as (SELECT id, \"name\", country_id FROM places WHERE \"name\" = '%(place)s' and country_id = " \
+           "%(country_id)i), i as (INSERT INTO places (\"name\", country_id) SELECT '%(place)s', %(country_id)i " \
            "WHERE NOT EXISTS (SELECT 1 FROM s) RETURNING id, \"name\", country_id) SELECT id FROM i UNION ALL " \
-           "SELECT id FROM s" % {'city': city, 'country_id': country_id}
+           "SELECT id FROM s" % {'place': place, 'country_id': country_id}
 
 
-def get_ws_id(station: classes.WeatherStation, city_id: int, country_id: int) -> str:
+def get_ws_id(station: classes.WeatherStation, place_id: int, country_id: int) -> str:
     data_type: str
     if station.data_type == 0:
         data_type = 'метеостанция'
@@ -47,22 +48,32 @@ def get_ws_id(station: classes.WeatherStation, city_id: int, country_id: int) ->
     else:
         data_type = 'метеодатчик'
     # подумать над station.start_date
-    return "WITH s as (SELECT id, \"number\", latitude, longitude, rp5_link, last_date, data_type, city_id, " \
-           "country_id FROM weather_stations WHERE \"number\" = %(number)i and rp5_link = '%(link)s' and city_id = " \
-           "%(city_id)i and country_id = %(country_id)i and data_type = '%(data_type)s'), i as (INSERT INTO " \
-           "weather_stations (\"number\", latitude, longitude, rp5_link, last_date, data_type, city_id, country_id) " \
-           "SELECT %(number)i, %(latitude)f, %(longitude)f, '%(link)s', '%(start_date)s', '%(data_type)s', " \
-           "%(city_id)i, %(country_id)i WHERE NOT EXISTS (SELECT 1 FROM s) RETURNING id, \"number\", latitude, " \
-           "longitude, rp5_link, last_date, data_type, city_id, country_id) SELECT id FROM i UNION ALL SELECT id " \
-           "FROM s" % {'number': int(station.number), 'link': station.link, 'city_id': city_id,
+    # error number 34214
+    print(f"{station.number=}, {station.link=}, {place_id=}, {country_id=}, {data_type=}, {station.latitude=}, "
+          f"{station.longitude=}, {station.start_date=}")
+    return "WITH s as (SELECT id, \"number\", latitude, longitude, rp5_link, last_date, data_type, place_id, " \
+           "country_id FROM weather_stations WHERE \"number\" = '%(number)s' and rp5_link = '%(link)s' and place_id = " \
+           "%(place_id)i and country_id = %(country_id)i and data_type = '%(data_type)s'), i as (INSERT INTO " \
+           "weather_stations (\"number\", latitude, longitude, rp5_link, last_date, data_type, place_id, country_id) " \
+           "SELECT '%(number)s', %(latitude)f, %(longitude)f, '%(link)s', '%(start_date)s', '%(data_type)s', " \
+           "%(place_id)i, %(country_id)i WHERE NOT EXISTS (SELECT 1 FROM s) RETURNING id, \"number\", latitude, " \
+           "longitude, rp5_link, last_date, data_type, place_id, country_id) SELECT id FROM i UNION ALL SELECT id " \
+           "FROM s" % {'number': station.number, 'link': station.link, 'place_id': place_id,
                        'country_id': country_id, 'data_type': data_type, 'latitude': station.latitude,
                        'longitude': station.longitude, 'start_date': station.start_date}
 
 
-def insert_csv_weather_data(my_path: str, delimiter: str) -> str:
+def insert_csv_weather_station_data(my_path: str, delimiter: str) -> str:
     return "COPY weather (weather_station_id, \"date\", temperature, pressure, pressure_converted, baric_trend, " \
            "humidity, wind_direction_id, wind_speed, max_wind_speed, max_wind_speed_between, cloud_cover_id, " \
            "current_weather, past_weather, past_weather_two, min_temperature, max_temperature, cloud_cl, " \
            "cloud_count_id, cloud_hight, cloud_cm, cloud_three, visibility, dew_point, rainfall, rainfall_time, " \
            "soil_condition, soil_temperature, soil_with_snow, snow_hight) FROM '%(my_path)s' DELIMITER " \
+           "'%(delimiter)s' NULL AS 'null' CSV HEADER;" % {'my_path': my_path, 'delimiter': delimiter}
+
+
+def insert_csv_metar_data(my_path: str, delimiter: str) -> str:
+    return "COPY weather (weather_station_id, \"date\", temperature, pressure, pressure_converted, humidity, " \
+           "wind_direction_id, wind_speed, max_wind_speed, current_weather, past_weather, cloud_cover_id, " \
+           "visibility, dew_point) FROM '%(my_path)s' DELIMITER " \
            "'%(delimiter)s' NULL AS 'null' CSV HEADER;" % {'my_path': my_path, 'delimiter': delimiter}

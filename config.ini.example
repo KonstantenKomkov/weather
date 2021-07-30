@@ -9,3 +9,8 @@ database=
 [path]
 # path must contain only latin symbols for naming folders
 static_root=D:\Work\Python\pythonProject\venv\Scripts\weather\main\management\weather_stations_csv\
+[yandex]
+login=
+pass=
+api_key=
+token=

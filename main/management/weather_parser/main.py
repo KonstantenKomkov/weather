@@ -5,6 +5,7 @@ from random import randint
 from time import sleep
 import zlib
 import configparser
+import ephem
 from collections import deque
 
 
@@ -18,9 +19,17 @@ import main.management.weather_parser.queries as queries
 
 config = configparser.ConfigParser()
 config.read("config.ini")
-DELIMITER = '#'
+DELIMITER = config["csv"]["delimiter"]
 STATIC_ROOT = config["path"]["static_root"]
 SAVE_IN_DB = False if config["db"]["database"] == '' else True
+# Replace in config every time when you need update your sources
+yandex = {
+    "login": config["yandex"]["login"],
+    "pass": config["yandex"]["pass"],
+    "api_key": config["yandex"]["api_key"],
+    "token": config["yandex"]["token"],
+    "id": config["yandex"]["id"],
+}
 
 
 current_session: Session = None
@@ -36,7 +45,7 @@ def create_directory(ws: classes.WeatherStation):
         pass
 
 
-def get_weather_for_year(start_date: date, number: int, ws_id: int, url: str):
+def get_weather_for_year(start_date: date, number: str, ws_id: int, url: str, data_type: int, metar: int):
     """ Function get archive file from site rp5.ru with weather data for one year
         and save it at directory."""
 
@@ -54,12 +63,13 @@ def get_weather_for_year(start_date: date, number: int, ws_id: int, url: str):
         if not current_session.cookies.items():
             current_session.get('https://rp5.ru/')
 
-        answer = rp5_parser.get_text_with_link_on_weather_data_file(current_session, number, start_date, last_date, url)
+        answer = rp5_parser.get_text_with_link_on_weather_data_file(
+            current_session, number, start_date, last_date, url, data_type, metar)
         count = 5
         while answer.text == "Error #FS000;" and count > 0:
             sleep(5)
             answer = rp5_parser.get_text_with_link_on_weather_data_file(
-                current_session, number, start_date, last_date, url)
+                current_session, number, start_date, last_date, url, data_type, metar)
             count -= 1
         else:
             if answer.text == "Error #FS000;":
@@ -77,7 +87,11 @@ def get_weather_for_year(start_date: date, number: int, ws_id: int, url: str):
             csv_weather_data = decompress.decode('utf-8')
 
             if SAVE_IN_DB:
-                file.write(processing.processing_data(DELIMITER, csv_weather_data.splitlines(), ws_id))
+                if data_type == 0:
+                    file.write(processing.weather_stations_data_processing(
+                        DELIMITER, csv_weather_data.splitlines(), ws_id))
+                elif data_type == 1:
+                    file.write(processing.metar_data_processing(DELIMITER, csv_weather_data.splitlines(), ws_id))
             else:
                 file.write(csv_weather_data)
         return True
@@ -88,22 +102,27 @@ def get_weather_for_year(start_date: date, number: int, ws_id: int, url: str):
         raise ValueError(f"Query to future {start_date.strftime('%Y.%m.%d')}!")
 
 
-def load_data_from_csv(folder):
+def load_data_from_csv(folder: str, data_type: int):
     global STATIC_ROOT
 
     if path.isdir(f"{STATIC_ROOT}{folder}"):
         for weather_file in listdir(f"{STATIC_ROOT}{folder}"):
             if path.isfile(f"{STATIC_ROOT}{folder}\\{weather_file}") and weather_file[-4:] == '.csv':
                 try:
-                    x = db.executesql(queries.insert_csv_weather_data(
-                        f"{STATIC_ROOT}{folder}\\{weather_file}",
-                        DELIMITER))
+                    if data_type == 0:
+                        x = db.executesql(queries.insert_csv_weather_station_data(
+                            f"{STATIC_ROOT}{folder}\\{weather_file}",
+                            DELIMITER))
+                    elif data_type == 1:
+                        x = db.executesql(queries.insert_csv_metar_data(
+                            f"{STATIC_ROOT}{folder}\\{weather_file}",
+                            DELIMITER))
                     db.commit()
                 except Exception as e:
                     # UniqueViolation, was skipped because all directory will be check
-                    if e.pgcode != '23505':
+                    if e.pgcode != '23505' and e.pgcode != '25P02':
                         # don't remove file for searching error
-                        print(f"My error: {e.pgcode}")
+                        print(f"My error: {e.pgcode}. File in folder {folder}\\{weather_file}.")
                         raise
                     else:
                         remove(f"{STATIC_ROOT}{folder}\\{weather_file}")
@@ -115,9 +134,11 @@ def get_all_data():
     """ Function get all weather data for all weather stations from csv file
         from start date of observations to today or update data from date of last
         getting weather."""
-    global current_session
+    global current_session, yandex
+    links_with_404: list(classes.WeatherStation) = list()
     wanted_stations = weather_csv.read_csv_file(STATIC_ROOT, DELIMITER)
 
+    indexes_of_duplicates = list()
     if wanted_stations:
 
         station: classes.WeatherStation
@@ -128,19 +149,53 @@ def get_all_data():
             url = station.link[0:14]
 
             if station.start_date is None or station.number is None:
-                rp5_parser.get_missing_ws_info(current_session, SAVE_IN_DB, station)
+                status, station = rp5_parser.get_missing_ws_info(current_session, SAVE_IN_DB, station, yandex)
                 print(f"Start getting data for {station.place} with "
                       f"start date of observations {station.start_date}...")
+
+                # Link return code 404 - page not found
+                if not status:
+                    links_with_404.append(station)
+                    continue
             else:
                 print(f"Start getting data for {station.place} with last "
                       f"date of loading {(station.start_date-timedelta(days=1)).strftime('%Y.%m.%d')} ...")
 
+            # На метеостанцию может быть несколько разных ссылок, поэтому надо проверять станции на уникальность по:
+            # number, latitude, longitude
+            unique = True
+            if index != 0:
+                for ws in wanted_stations[:index - 1]:
+                    if station.number == ws.number and station.latitude == ws.latitude and station.longitude == ws.longitude:
+                        indexes_of_duplicates.append(index)
+                        unique = False
+                        break
+            if not unique:
+                continue
+
             create_directory(station)
             start_year: int = station.start_date.year
             if SAVE_IN_DB:
-                country_id = db.executesql(queries.get_country_id(station.country))[0][0]
-                city_id = db.executesql(queries.get_city_id(station.place, country_id))[0][0]
-                station.ws_id = db.executesql(queries.get_ws_id(station, city_id, country_id))[0][0]
+                # Скользящая ошибка
+                db.commit()
+                count = 5
+                while count > 0:
+                    count -= 1
+                    try:
+                        x = queries.get_country_id(station.country)
+                        # print(x)
+                        temp = db.executesql(x)
+                        # print(temp)
+                        break
+                    except Exception as e:
+                        print(f'Error in country query: {e}')
+                else:
+                    print(f"Can't get country id from db after {count} attempts")
+                    raise
+                country_id = temp[0][0]
+                # end of error
+                place_id = db.executesql(queries.get_city_id(station.place, country_id))[0][0]
+                station.ws_id = db.executesql(queries.get_ws_id(station, place_id, country_id))[0][0]
                 db.commit()
             flag = False
             while start_year < datetime.now().year + 1:
@@ -148,18 +203,19 @@ def get_all_data():
                     start_date: date = station.start_date
                 else:
                     start_date: date = date(start_year, 1, 1)
-                flag = get_weather_for_year(start_date, station.number, station.ws_id, url)
+                flag = get_weather_for_year(start_date, station.number, station.ws_id, url, station.data_type,
+                                            station.metar)
                 start_year += 1
             station.start_date = datetime.now().date() - timedelta(days=1)
             if flag:
                 if SAVE_IN_DB:
-                    load_data_from_csv(station.number)
+                    load_data_from_csv(station.number, station.data_type)
                 weather_csv.update_csv_file(STATIC_ROOT, DELIMITER, station, index)
                 # Use timeout between sessions for concealment
                 sleep(randint(3, 10))
                 print("Data was loaded!")
             current_session.close()
-    return
+    return links_with_404
 
 
 def create_csv_by_country(url):
@@ -181,3 +237,82 @@ def create_csv_by_country(url):
         links.append(line[:-1])
 
     links_and_types = rp5_parser.get_link_type(links, STATIC_ROOT, DELIMITER)
+
+    # If you start find_sources command from the middle
+    def delete_not_unique_elements():
+        lines = []
+        with open(f"{STATIC_ROOT}places.txt", "r", encoding="utf-8") as file:
+            lines = file.readlines()
+            lines = list(set(lines))
+
+        with open(f"{STATIC_ROOT}places.txt", "w", encoding="utf-8") as file:
+            for line in lines:
+                file.write(line)
+
+    delete_not_unique_elements()
+
+
+def update_sources():
+    sources, lines = [], []
+
+    with open(f"{STATIC_ROOT}places.txt", "r", encoding="utf-8") as file:
+        sources = file.readlines()
+    for i, source in enumerate(sources):
+        sources[i] = source.split(DELIMITER)
+        sources[i] = [sources[i][0], sources[i][1].replace('http', 'https'), sources[i][2]]
+
+    with open(f"{STATIC_ROOT}cities.txt", "r", encoding="utf-8") as file:
+        lines = file.readlines()
+    for i, line in enumerate(lines):
+        lines[i] = line.split(DELIMITER)
+
+    # Deleting all that in cities.csv already
+    new_line_list = list()
+    count = 0
+    for line in lines:
+        for source in sources.copy():
+            if source[1] == line[1]:
+                new_line_list.append(line)
+                sources.remove(source)
+                count += 1
+
+    # print(len(sources))
+    # print(f"{count=}")
+
+    with open(f"{STATIC_ROOT}cities.txt", "a+", encoding="utf-8") as file:
+        file.write('\n')
+        for index, source in enumerate(sources):
+            # Adding weather stations and metar
+            if source[2] in ('0\n', '1\n', '0', '1'):
+                if index == len(sources) - 1:
+                    file.write(DELIMITER.join(map(str, source)))
+                else:
+                    file.write(DELIMITER.join(map(str, source)))
+
+
+def calculate_day_length(latitude: float, longitude: float, date: datetime):
+    """Function find sunrise, noon and sunset."""
+
+    #utc_date = calculate_utc_russia(date)
+    # Make an observer
+    fred = ephem.Observer()
+
+    # PyEphem takes and returns only UTC times. 15:00 is noon in Fredericton
+    fred.date = "2021-06-21 00:00:00"
+
+    # Location of place
+    fred.lon = str(longitude)
+    fred.lat = str(latitude)
+
+    # Elevation of Fredericton, Canada, in metres
+    fred.elev = 20
+
+    # To get U.S. Naval Astronomical Almanac values, use these settings
+    fred.pressure = 0
+    fred.horizon = '-0:34'
+
+    sunrise = fred.previous_rising(ephem.Sun())  # Sunrise
+    noon = fred.next_transit(ephem.Sun(), start=sunrise)  # Solar noon
+    sunset = fred.next_setting(ephem.Sun())  # Sunset
+    print(f"{ephem.Date(sunrise)}, {ephem.Date(noon)}, {ephem.Date(sunset)}")
+    return [sunrise, noon, sunset]

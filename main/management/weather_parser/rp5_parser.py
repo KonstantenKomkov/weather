@@ -6,10 +6,13 @@ from requests import Session, get
 from requests.exceptions import HTTPError
 from requests.models import Response
 from time import sleep
+from json import loads
+from typing import Tuple
 
 
 import main.management.weather_parser.rp5_ru_headers as rp5_ru_headers
 import main.management.weather_parser.rp5_md_headers as rp5_md_headers
+import main.management.weather_parser.yandex_headers as ya
 import main.management.weather_parser.classes as classes
 
 
@@ -21,7 +24,13 @@ def get_start_date(s: str) -> date:
 
     months = ['января', 'февраля', 'марта', 'апреля', 'мая', 'июня', 'июля',
               'августа', 'сентября', 'октября', 'ноября', 'декабря', ]
-    s = s.removeprefix(' номер метеостанции     , наблюдения с ')
+    if s.find(' номер метеостанции     , наблюдения с ') > -1:
+        s = s.removeprefix(' номер метеостанции     , наблюдения с ')
+    elif s.find(' аэропорт (ICAO)    , наблюдения с ') > -1:
+        s = s.removeprefix(' аэропорт (ICAO)    , наблюдения с ')
+    else:
+        print(s)
+        raise
     date_list: list = s.strip(' ').split(' ')
     year = int(date_list[2])
     month = months.index(date_list[1]) + 1
@@ -40,8 +49,43 @@ def get_coordinates(a: str) -> tuple[float, float]:
         raise (TypeError(f"must be str, not {type(a)}"))
 
 
-def get_missing_ws_info(current_session: Session, save_in_db: bool, station: classes.WeatherStation) -> \
-        classes.WeatherStation:
+def find_country_by_coordinates(yandex, latitude, longitude) -> str:
+    """Function used yandex maps api and get country by coordinates."""
+
+    data = {
+        'login': yandex["login"],
+        'passwd': yandex["pass"],
+    }
+
+    #TODO: get session.headers or token and id from yandex
+    response = Session().get(f'https://api-maps.yandex.ru/services/search//v2/?callback='
+                             f'{yandex["id"]}&text={latitude}%2C{longitude}&format=json&rspn=0'
+                             f'&lang=ru_RU&token={yandex["token"]}&type=geo&properties=addressdetails&'
+                             f'geocoder_sco=latlong&origin=jsapi2Geocoder&apikey={yandex["api_key"]}',
+                             data=data, headers=ya.header,)
+    if response.text == '{"statusCode":401,"error":"Unauthorized","message":"Unauthorized"}':
+        raise ValueError("Не удалось авторизоваться в API Yandex map - не можем получить название страны, установите "
+                         "корректные значения для API Yandex map в config.ini, раздел yandex.")
+    else:
+        json_string = response.text.replace(f'/**/{yandex["id"]}(', '')
+        json_string = json_string[:-2]
+        data = loads(json_string)
+        country = data["data"]["features"][len(data["data"]["features"])-1]["properties"]["GeocoderMetaData"]["AddressDetails"]["Country"]["CountryName"]
+    return country
+
+
+def find_metar(soup) -> int:
+    metar = -1
+    founded_tags = soup.find_all("div", {"class": "archButton"})
+    for tag in founded_tags:
+        if tag.get('onclick').find('fFileMetarGet(') > -1:
+            temp = tag.get('onclick')[tag.get('onclick').find('fFileMetarGet(') + 14:]
+            temp = temp[:temp.find(')')]
+            return int(temp.split(',')[1])
+    return metar
+
+def get_missing_ws_info(current_session: Session, save_in_db: bool, station: classes.WeatherStation, yandex: dict) -> \
+        Tuple[bool, classes.WeatherStation]:
     """ Getting country, numbers weather station, start date of observations, from site rp5.ru."""
 
     try:
@@ -52,23 +96,37 @@ def get_missing_ws_info(current_session: Session, save_in_db: bool, station: cla
         print(f'Other error occurred: {err}')
     else:
         soup = BeautifulSoup(response.text, 'lxml')
-        station.number = soup.find("input", id="wmo_id").get('value')
-        station.start_date = get_start_date(soup.find("input", id="wmo_id").parent.text)
-        country_span = soup.find("div", class_="intoLeftNavi").find("span", class_="verticalBottom")
-        for index, child in enumerate(country_span):
-            if index == 5:
-                station.country = child.find("nobr").text
-                break
-        station.latitude, station.longitude = \
-            get_coordinates(str(soup.find("div", class_="pointNaviCont noprint").find("a")))
-        # if save_in_db:
-        #     if station.city_id is None:
-        #         station.city_id = queries.get_id_from_db()
-    return station
+        status = True
+        if str(soup) == '<html><body><h1>Error 404. Page not found!</h1><br/></body></html>':
+            status = False
+        elif soup.find("img", src="/images/404.png") is not None:
+            print('Find image with 404')
+            status = False
+        else:
+            # Get station.number
+            wmo_id = soup.find("input", id="wmo_id")
+            cc_str = soup.find("input", id="cc_str")
+            if wmo_id is not None:
+                station.number = wmo_id.get('value')
+                station.start_date = get_start_date(wmo_id.parent.text)
+            elif cc_str is not None:
+                station.number = cc_str.get('value')
+                station.start_date = get_start_date(cc_str.parent.text)
+            else:
+                station.number = ''
+                station.start_date = date(1, 1, 1)
 
 
-def get_text_with_link_on_weather_data_file(current_session: Session, ws_id: int, start_date: date, last_date: date,
-                                            url: str):
+            station.latitude, station.longitude = \
+                get_coordinates(str(soup.find("div", class_="pointNaviCont noprint").find("a")))
+
+            station.country = find_country_by_coordinates(yandex, station.latitude, station.longitude)
+            station.metar = 0 if station.data_type == 0 else find_metar(soup)
+    return status, station
+
+
+def get_text_with_link_on_weather_data_file(current_session: Session, ws_id: str, start_date: date, last_date: date,
+                                            url: str, data_type: int, metar: int=None):
     """ Function create query for site rp5.ru with special params for
         getting JS text with link on csv.gz file and returns response of query.
         I use sessionw and headers because site return text - 'Error #FS000;'
@@ -85,12 +143,23 @@ def get_text_with_link_on_weather_data_file(current_session: Session, ws_id: int
     else:
         current_session.headers = rp5_ru_headers.get_header(current_session.cookies.items()[0][1], choice(browsers))
     try:
-        result: Response = current_session.post(
-            f"{url}/responses/reFileSynop.php",
-            data={'wmo_id': ws_id, 'a_date1': start_date.strftime('%d.%m.%Y'),
-                  'a_date2': last_date.strftime('%d.%m.%Y'), 'f_ed3': 5, 'f_ed4': 5, 'f_ed5': 17, 'f_pe': 1,
-                  'f_pe1': 2, 'lng_id': 2, })
-        return result
+        if data_type == 0:
+            result: Response = current_session.post(
+                f"{url}/responses/reFileSynop.php",
+                data={'wmo_id': ws_id, 'a_date1': start_date.strftime('%d.%m.%Y'),
+                      'a_date2': last_date.strftime('%d.%m.%Y'), 'f_ed3': 5, 'f_ed4': 5, 'f_ed5': 17, 'f_pe': 1,
+                      'f_pe1': 2, 'lng_id': 2, })
+            return result
+        elif data_type == 1:
+            result: Response = current_session.post(
+                f"{url}/responses/reFileMetar.php",
+                data={'metar': metar, 'a_date1': start_date.strftime('%d.%m.%Y'),
+                      'a_date2': last_date.strftime('%d.%m.%Y'), 'f_ed3': 7, 'f_ed4': 7, 'f_ed5': 13, 'f_pe': 1,
+                      'f_pe1': 2, 'lng_id': 2, })
+            return result
+        else:
+            print(f"Ettor of data_type = {data_type}")
+            raise
     except HTTPError as http_err:
         print(f'HTTP error occurred: {http_err}')
     except Exception as err:

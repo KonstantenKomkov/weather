@@ -1,0 +1,15 @@
+# open https://api-maps.yandex.ru/2.1/?apikey=YOUR_API_KEY&lang=ru_RU and
+# get cookie from google chrome browser F12 -> Network -> Headers -> Request Headers -> cookie
+header = {'Accept': '*/*',
+          'Accept-Encoding': 'gzip, deflate, br',
+          'Accept-Language': 'ru,en-US;q=0.9,en;q=0.8,ru-RU;q=0.7',
+          'Connection': 'keep-alive',
+          'Cookie': 'YOUR_COOKIE',
+          'Host': 'api-maps.yandex.ru',
+          'sec-ch-ua': '" Not;A Brand";v="99", "Google Chrome";v="91", "Chromium";v="91"',
+          'sec-ch-ua-mobile': '?0',
+          'Sec-Fetch-Dest': 'script',
+          'Sec-Fetch-Mode': 'no-cors',
+          'Sec-Fetch-Site': 'cross-site',
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) '
+                        'Chrome/91.0.4472.77 Safari/537.36'}
