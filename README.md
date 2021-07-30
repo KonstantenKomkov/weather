@@ -5,6 +5,7 @@ About
 Parser worked in two modes:
 - getting data from the date of start observations;
 - getting data for missing period (it is assumed to download from a specific date).
+
 For SYNOP and METAR now!
 
 Parser get weather data for your weather stations for years. That data converted for loading to database.
