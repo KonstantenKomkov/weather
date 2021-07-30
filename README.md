@@ -14,6 +14,11 @@ Database structure described in models.py file. Aim of getting weather data migh
 
 How to use
 -------------------------
+Now cities.csv contain data of my last parsing. For clear it use:
+```//Django command:
+python manage.py clear_cities
+```
+Clear_cities command delete all exept place, link, and weather station type.
 ```//Django command:
 python manage.py get_weather
 ```
@@ -35,12 +40,6 @@ and optional parameters (parser add it autonomous):
 
 [Cities.csv][3] contain some data as example. Put your data here.
 [places.txt][4] contain all weather sources for Russia at date 17.07.2021.
-
-Now cities.csv contain data of my last parsing. For clear it use:
-```//Django command:
-python manage.py clear_cities
-```
-Clear_cities command delete all exept place, link, and weather station type.
 
 If you want to find weather sources for other countries use:
 ```//Django command:
