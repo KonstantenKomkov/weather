@@ -30,7 +30,7 @@ Write folder path for saving data it is necessarily. Delete .example from config
 Parser work with csv file (cities.csv) with 3 required parameters:  
 - city name (maybe place name);
 - link on rp5 site page with that city or place;
-- type of data: 0 - weather station, 1 - METAR, 2 - weather sensor;  
+- type of data: 0 - SYNOP, 1 - METAR;  
   
 and optional parameters (parser add it autonomous):
 - last date of download data (yesterday);
@@ -39,7 +39,7 @@ and optional parameters (parser add it autonomous):
 - id weather station if you are using database;
 - latitude weather station;
 - longitude weather station;
-- metar (0 if SYNOP/ value if metar).
+- metar (0 if SYNOP/ value if METAR).
 
 [Cities.csv][3] contain some data as example. Put your data here.
 [places.txt][4] contain all weather sources for Russia at date 17.07.2021.
