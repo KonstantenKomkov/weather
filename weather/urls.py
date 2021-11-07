@@ -16,10 +16,18 @@ Including another URLconf
 from django.contrib import admin
 from django.urls import path, include
 from main.views import index
+from rest_framework.authtoken import views
+from rest_framework.schemas import get_schema_view
+from weather.yasg import urlpatterns as doc_urls
+import djoser.views
+
 
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('', index),
     path('api/', include('main.api.urls')),
-    path('api-auth/', include('rest_framework.urls'))
+    path('api/auth/register', include('djoser.urls')),
+    path('api/auth/', include('djoser.urls.authtoken')),
 ]
+
+urlpatterns += doc_urls
