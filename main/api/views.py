@@ -2,7 +2,7 @@ from rest_framework import viewsets, permissions
 from .serializers import WeatherSerializer, WeatherStationSerializer, WeatherStationListRetrieveSerializer
 from ..models import Weather, WeatherStation
 from django_filters.rest_framework import DjangoFilterBackend
-# TODO: переопределить лишнике методы API
+# TODO: переопределить лишние методы API
 from djoser.views import UserViewSet
 
 
