@@ -2,6 +2,12 @@ from rest_framework import viewsets, permissions
 from .serializers import WeatherSerializer, WeatherStationSerializer, WeatherStationListRetrieveSerializer
 from ..models import Weather, WeatherStation
 from django_filters.rest_framework import DjangoFilterBackend
+# TODO: переопределить лишние методы API
+from djoser.views import UserViewSet
+
+
+# class CustomUserViewSet(UserViewSet):
+#
 
 
 class WeatherViewSet(viewsets.ReadOnlyModelViewSet):
@@ -11,7 +17,7 @@ class WeatherViewSet(viewsets.ReadOnlyModelViewSet):
 
 
 class WeatherStationViewSet(viewsets.ReadOnlyModelViewSet):
-    permission_classes = [permissions.IsAuthenticated]
+    # permission_classes = [permissions.IsAuthenticated]
     queryset = WeatherStation.objects.all()
     serializer_class = WeatherStationSerializer
     # filter_backends = (DjangoFilterBackend, )

@@ -19,7 +19,8 @@ from main.views import index
 from rest_framework.authtoken import views
 from rest_framework.schemas import get_schema_view
 from weather.yasg import urlpatterns as doc_urls
-import djoser.views
+#import djoser.views
+
 
 
 urlpatterns = [
