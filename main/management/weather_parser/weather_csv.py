@@ -1,4 +1,4 @@
-import main.management.weather_parser.classes as classes
+import parser_main.management.weather_parser.classes as classes
 from datetime import datetime, timedelta
 
 

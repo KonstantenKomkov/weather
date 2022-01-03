@@ -9,12 +9,10 @@ from time import sleep
 from json import loads
 from typing import Tuple
 
-
 import main.management.weather_parser.rp5_ru_headers as rp5_ru_headers
 import main.management.weather_parser.rp5_md_headers as rp5_md_headers
 import main.management.weather_parser.yandex_headers as ya
 import main.management.weather_parser.classes as classes
-
 
 browsers = ['Chrome', 'Firefox', 'Yandex']
 
@@ -38,7 +36,7 @@ def get_start_date(s: str) -> date:
     return date(year, month, day)
 
 
-def get_coordinates(a: str) -> tuple[float, float]:
+def get_coordinates(a: str) -> tuple[float, float] | tuple[None, None]:
     """ Function find latitude and longitude in html string for weather station."""
     if isinstance(a, str):
         if a.find("show_map(") > -1 and a.find(");") > -1 and a.find(", ") > -1:
@@ -57,12 +55,12 @@ def find_country_by_coordinates(yandex, latitude, longitude) -> str:
         'passwd': yandex["pass"],
     }
 
-    #TODO: get session.headers or token and id from yandex
+    # TODO: get session.headers or token and id from yandex
     response = Session().get(f'https://api-maps.yandex.ru/services/search//v2/?callback='
                              f'{yandex["id"]}&text={latitude}%2C{longitude}&format=json&rspn=0'
                              f'&lang=ru_RU&token={yandex["token"]}&type=geo&properties=addressdetails&'
                              f'geocoder_sco=latlong&origin=jsapi2Geocoder&apikey={yandex["api_key"]}',
-                             data=data, headers=ya.header,)
+                             data=data, headers=ya.header, )
     if response.text == '{"statusCode":401,"error":"Unauthorized","message":"Unauthorized"}':
         raise ValueError("Не удалось авторизоваться в API Yandex map - не можем получить название страны, установите "
                          "корректные значения для API Yandex map в config.ini, раздел yandex.")
@@ -70,7 +68,10 @@ def find_country_by_coordinates(yandex, latitude, longitude) -> str:
         json_string = response.text.replace(f'/**/{yandex["id"]}(', '')
         json_string = json_string[:-2]
         data = loads(json_string)
-        country = data["data"]["features"][len(data["data"]["features"])-1]["properties"]["GeocoderMetaData"]["AddressDetails"]["Country"]["CountryName"]
+        country = \
+            data["data"]["features"][len(data["data"]["features"]) - 1]["properties"]["GeocoderMetaData"][
+                "AddressDetails"][
+                "Country"]["CountryName"]
     return country
 
 
@@ -84,10 +85,13 @@ def find_metar(soup) -> int:
             return int(temp.split(',')[1])
     return metar
 
+
 def get_missing_ws_info(current_session: Session, save_in_db: bool, station: classes.WeatherStation, yandex: dict) -> \
         Tuple[bool, classes.WeatherStation]:
     """ Getting country, numbers weather station, start date of observations, from site rp5.ru."""
 
+    # TODO: добавить условие для параметра save_in_db
+    status: bool = False
     try:
         response = current_session.get(station.link)
     except HTTPError as http_err:
@@ -116,7 +120,6 @@ def get_missing_ws_info(current_session: Session, save_in_db: bool, station: cla
                 station.number = ''
                 station.start_date = date(1, 1, 1)
 
-
             station.latitude, station.longitude = \
                 get_coordinates(str(soup.find("div", class_="pointNaviCont noprint").find("a")))
 
@@ -126,7 +129,7 @@ def get_missing_ws_info(current_session: Session, save_in_db: bool, station: cla
 
 
 def get_text_with_link_on_weather_data_file(current_session: Session, ws_id: str, start_date: date, last_date: date,
-                                            url: str, data_type: int, metar: int=None):
+                                            url: str, data_type: int, metar: int = None):
     """ Function create query for site rp5.ru with special params for
         getting JS text with link on csv.gz file and returns response of query.
         I use sessionw and headers because site return text - 'Error #FS000;'
@@ -178,7 +181,7 @@ def get_link_archive_file(text: str) -> str:
     return link
 
 
-def get_pages_with_weather_at_place(static_root: str, pages: deque) -> deque:
+def get_pages_with_weather_at_place(pages: deque) -> tuple[list, list]:
     """Function find all pages with link at a place or find all places in country and links for it."""
 
     links, another = [], []
@@ -205,15 +208,14 @@ def get_pages_with_weather_at_place(static_root: str, pages: deque) -> deque:
     return links, another
 
 
-def get_link_type(links: list, static_root, delimiter) -> list:
+def get_link_type(links: list, static_root, delimiter) -> list[list[str, str, int]]:
     """Function get links and types of weather stations by list of places links."""
 
     def get_place(url: str) -> str:
-        place = url[url.find('Архив_погоды_в_')+15:].replace("_", " ")
-        return place
+        """Function return name of place from url"""
+        return url[url.find('Архив_погоды_в_') + 15:].replace("_", " ")
 
-
-    def write_line(static_root: str, line: list, delimiter: str):
+    def write_line(line: list) -> None:
         with open(f"{static_root}places.txt", "a+", encoding="utf-8") as file:
             file.write(f"{delimiter.join(map(str, line))}\n")
 
@@ -221,6 +223,7 @@ def get_link_type(links: list, static_root, delimiter) -> list:
     current_session = Session()
     for i, link in enumerate(links):
         print(i)
+        # TODO: Вынести этот параметр в настройки или конфиг (для каждой сотой ссылки создаём новую сессию)
         if i % 100 == 0:
             current_session = Session()
         response = current_session.get(link)
@@ -231,16 +234,18 @@ def get_link_type(links: list, static_root, delimiter) -> list:
                 place = get_place(element.find("a")["href"])
                 if [place, element.find("a")["href"], 0] not in result:
                     result.append([place, element.find("a")["href"], 0])
-                    write_line(static_root, [place, element.find("a")["href"], 0], delimiter)
+                    write_line([place, element.find("a")["href"], 0])
             elif element.find(class_="iconmetar") is not None:
                 place = get_place(element.find("a")["href"])
                 if [place, element.find("a")["href"], 1] not in result:
                     result.append([place, element.find("a")["href"], 1])
-                    write_line(static_root, [place, element.find("a")["href"], 1], delimiter)
+                    write_line([place, element.find("a")["href"], 1])
             elif element.find(class_="iconwug") is not None:
                 place = get_place(element.find("a")["href"])
                 if [place, element.find("a")["href"], 2] not in result:
                     result.append([place, element.find("a")["href"], 2])
-                    write_line(static_root, [place, element.find("a")["href"], 2], delimiter)
+                    write_line([place, element.find("a")["href"], 2])
+        # TODO: Вынести этот параметр в настройки или конфиг (рандомный интервал секунд - (1, 3) на который засыпаем,
+        #  после выполнения запроса)
         sleep(randint(1, 3))
     return result

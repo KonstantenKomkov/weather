@@ -1,4 +1,4 @@
-import main.management.weather_parser.classes as classes
+import parser_main.management.weather_parser.classes as classes
 
 
 def insert_wind_data():

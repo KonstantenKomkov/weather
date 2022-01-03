@@ -1,5 +1,5 @@
 from datetime import datetime
-from main.management.weather_parser.db import db
+from parser_main.management.weather_parser.db import db
 
 
 def get_cloudiness_id(db_cloudiness_list: list, value: str):
@@ -49,13 +49,14 @@ def weather_stations_data_processing(delimiter: str, csv_weather_data: list, ws_
     """ Processing data for database. Check models.py for see database structure."""
     global wind_direction, cloud_cover, count_cloud_cover_nh
     weathers_header = \
-        f'weather_station_id{delimiter} "date"{delimiter} temperature{delimiter} pressure{delimiter} pressure_converted' \
-        f'{delimiter} baric_trend{delimiter} humidity{delimiter} wind_direction_id{delimiter} wind_speed{delimiter} ' \
-        f'max_wind_speed{delimiter} max_wind_speed_between{delimiter} cloud_cover_id{delimiter} current_weather' \
-        f'{delimiter} past_weather{delimiter} past_weather_two{delimiter} min_temperature{delimiter} max_temperature' \
-        f'{delimiter} cloud_one{delimiter} cloud_count_id{delimiter} cloud_hight{delimiter} cloud_two{delimiter} ' \
-        f'cloud_three{delimiter} visibility{delimiter} dew_point{delimiter} rainfall{delimiter} rainfall_time{delimiter} ' \
-        f'soil_condition{delimiter} soil_temperature{delimiter} soil_with_snow{delimiter} snow_hight\n'
+        f'weather_station_id{delimiter} "date"{delimiter} temperature{delimiter} pressure{delimiter} ' \
+        f'pressure_converted{delimiter} baric_trend{delimiter} humidity{delimiter} wind_direction_id{delimiter} ' \
+        f'wind_speed{delimiter} max_wind_speed{delimiter} max_wind_speed_between{delimiter} ' \
+        f'cloud_cover_id{delimiter} current_weather{delimiter} past_weather{delimiter} past_weather_two{delimiter} ' \
+        f'min_temperature{delimiter} max_temperature{delimiter} cloud_one{delimiter} cloud_count_id{delimiter} ' \
+        f'cloud_hight{delimiter} cloud_two{delimiter} cloud_three{delimiter} visibility{delimiter} ' \
+        f'dew_point{delimiter} rainfall{delimiter} rainfall_time{delimiter} soil_condition{delimiter} ' \
+        f'soil_temperature{delimiter} soil_with_snow{delimiter} snow_hight\n'
 
     del csv_weather_data[:7]
     for x in csv_weather_data:

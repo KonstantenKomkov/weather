@@ -2,6 +2,7 @@ from pydantic import BaseModel
 from datetime import date
 
 
+# TODO: Удалить этот класс, использовать класс WeatherStation из main models.py
 class WeatherStation(BaseModel):
     place: str = None
     link: str

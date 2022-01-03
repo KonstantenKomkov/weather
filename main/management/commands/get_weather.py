@@ -1,6 +1,5 @@
 from django.core.management.base import BaseCommand
-from main.management.weather_parser.main import *
-import main.management.weather_parser.classes as classes
+from main.management.weather_parser.parser_main import *
 
 
 class Command(BaseCommand):
