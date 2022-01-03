@@ -1,5 +1,4 @@
 from django.core.management.base import BaseCommand
-from main.management.weather_parser.main import *
 import configparser
 
 
@@ -14,22 +13,21 @@ class Command(BaseCommand):
 
     def handle(self, *args, **kwargs):
         try:
-            config = configparser.ConfigParser()
-            config.read("config.ini")
-            DELIMITER = config["csv"]["delimiter"]
-            STATIC_ROOT = config["path"]["static_root"]
+            _config = configparser.ConfigParser()
+            _config.read("config.ini")
+            delimiter = _config["csv"]["delimiter"]
+            static_root: str = _config["path"]["static_root"]
 
-            lines = []
-            with open(f"{STATIC_ROOT}cities.txt", "r", encoding="utf-8") as file:
-                lines = file.readlines()
-            for i, line in enumerate(lines):
-                lines[i] = line.split(DELIMITER)[0:3]
+            with open(f"{static_root}cities.txt", "r", encoding="utf-8") as file:
+                lines: list[str] = file.readlines()
+            for i, x in enumerate(lines):
+                lines[i] = x.split(delimiter)[0:3]
                 if lines[i][2] == '0':
                     lines[i][2] = '0\n'
 
-            with open(f"{STATIC_ROOT}cities.txt", "w", encoding="utf-8") as file:
-                for index, line in enumerate(lines):
-                    file.write(DELIMITER.join(map(str, line)))
+            with open(f"{static_root}cities.txt", "w", encoding="utf-8") as file:
+                for index, x in enumerate(lines):
+                    file.write(delimiter.join(map(str, x)))
         except Exception as e:
             self.stdout.write(f'Error is:\n{e}')
         else:
