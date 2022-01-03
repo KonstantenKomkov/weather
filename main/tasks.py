@@ -1,5 +1,5 @@
 from celery import shared_task
-from main.management.weather_parser.main import *
+from main.management.weather_parser.parser_main import *
 
 
 @shared_task
