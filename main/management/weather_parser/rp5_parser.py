@@ -13,6 +13,7 @@ import main.management.weather_parser.rp5_ru_headers as rp5_ru_headers
 import main.management.weather_parser.rp5_md_headers as rp5_md_headers
 import main.management.weather_parser.yandex_headers as ya
 import main.management.weather_parser.classes as classes
+from weather.app_models import Yandex
 
 browsers = ['Chrome', 'Firefox', 'Yandex']
 
@@ -47,25 +48,25 @@ def get_coordinates(a: str) -> tuple[float, float] | tuple[None, None]:
         raise (TypeError(f"must be str, not {type(a)}"))
 
 
-def find_country_by_coordinates(yandex, latitude, longitude) -> str:
+def find_country_by_coordinates(yandex: Yandex, latitude, longitude) -> str:
     """Function used yandex maps api and get country by coordinates."""
 
     data = {
-        'login': yandex["login"],
-        'passwd': yandex["pass"],
+        'login': yandex.login,
+        'passwd': yandex.password,
     }
 
     # TODO: get session.headers or token and id from yandex
     response = Session().get(f'https://api-maps.yandex.ru/services/search//v2/?callback='
-                             f'{yandex["id"]}&text={latitude}%2C{longitude}&format=json&rspn=0'
-                             f'&lang=ru_RU&token={yandex["token"]}&type=geo&properties=addressdetails&'
-                             f'geocoder_sco=latlong&origin=jsapi2Geocoder&apikey={yandex["api_key"]}',
+                             f'{yandex.id}&text={latitude}%2C{longitude}&format=json&rspn=0'
+                             f'&lang=ru_RU&token={yandex.token}&type=geo&properties=addressdetails&'
+                             f'geocoder_sco=latlong&origin=jsapi2Geocoder&apikey={yandex.api_key}',
                              data=data, headers=ya.header, )
     if response.text == '{"statusCode":401,"error":"Unauthorized","message":"Unauthorized"}':
         raise ValueError("Не удалось авторизоваться в API Yandex map - не можем получить название страны, установите "
                          "корректные значения для API Yandex map в config.ini, раздел yandex.")
     else:
-        json_string = response.text.replace(f'/**/{yandex["id"]}(', '')
+        json_string = response.text.replace(f'/**/{yandex.id}(', '')
         json_string = json_string[:-2]
         data = loads(json_string)
         country = \
@@ -86,8 +87,10 @@ def find_metar(soup) -> int:
     return metar
 
 
-def get_missing_ws_info(current_session: Session, save_in_db: bool, station: classes.WeatherStation, yandex: dict) -> \
-        Tuple[bool, classes.WeatherStation]:
+def get_missing_ws_info(
+        current_session: Session,
+        save_in_db: bool, station: classes.WeatherStation,
+        yandex: Yandex) -> Tuple[bool, classes.WeatherStation]:
     """ Getting country, numbers weather station, start date of observations, from site rp5.ru."""
 
     # TODO: добавить условие для параметра save_in_db
