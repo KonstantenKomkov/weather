@@ -11,32 +11,23 @@ https://docs.djangoproject.com/en/3.2/ref/settings/
 """
 
 from pathlib import Path
-import configparser
-from rest_framework import authentication
+import read_config
+from weather.app_models import App
 
-
-# class EmptyKeyAuthentication(authentication.TokenAuthentication):
-#     keyword='Bearer'
-
-
-config = configparser.ConfigParser()
-config.read("config.ini")
-
+app: App = read_config.read_config()
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
-
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/3.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = config["app"]["secret_key"]
+SECRET_KEY = App.secret_key
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
 ALLOWED_HOSTS = []
-
 
 # Application definition
 
@@ -87,20 +78,18 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'weather.wsgi.application'
 
-
 # Database
 # https://docs.djangoproject.com/en/3.2/ref/settings/#databases
 
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': config["db"]["database"],
-        'USER': config["db"]["user"],
-        'PASSWORD': config["db"]["password"],
-        'HOST': config["db"]["host"],
+        'ENGINE': App.database.engine,
+        'NAME': App.database.name,
+        'USER': App.database.user,
+        'PASSWORD': App.database.password,
+        'HOST': App.database.host,
     }
 }
-
 
 # Password validation
 # https://docs.djangoproject.com/en/3.2/ref/settings/#auth-password-validators
@@ -120,7 +109,6 @@ AUTH_PASSWORD_VALIDATORS = [
     },
 ]
 
-
 # Internationalization
 # https://docs.djangoproject.com/en/3.2/topics/i18n/
 
@@ -133,7 +121,6 @@ USE_I18N = True
 USE_L10N = True
 
 USE_TZ = True
-
 
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/3.2/howto/static-files/
@@ -156,9 +143,9 @@ CELERY_TASK_TIME_LIMIT = 30 * 60
 CELERY_BROKER_URL = 'redis://localhost:6379/0'
 
 REST_FRAMEWORK = {
-    'DEFAULT_FILTER_BACKENDS': ['django_filters.rest_framework.DjangoFilterBackend',],
-    'DEFAULT_AUTHENTICATION_CLASSES': ['rest_framework.authentication.TokenAuthentication',],
-    #'DEFAULT_AUTHENTICATION_CLASSES': [EmptyKeyAuthentication],
+    'DEFAULT_FILTER_BACKENDS': ['django_filters.rest_framework.DjangoFilterBackend', ],
+    'DEFAULT_AUTHENTICATION_CLASSES': ['rest_framework.authentication.TokenAuthentication', ],
+    # 'DEFAULT_AUTHENTICATION_CLASSES': [EmptyKeyAuthentication],
     'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.LimitOffsetPagination',
     'PAGE_SIZE': 10,
 }
@@ -175,10 +162,21 @@ SWAGGER_SETTINGS = {
     # removing Django login button in Swagger
     'USE_SESSION_AUTH': False,
     'SECURITY_DEFINITIONS': {
-      'Bearer': {
+        'Bearer': {
             'type': 'apiKey',
             'name': 'Authorization',
-            'in': 'header'
-      }
-   }
+            'in': 'header',
+        }
+    }
+}
+
+WEATHER_PARSER = {
+    # if you are writing data in DB recomended set `true`
+    'DELETE_CSV_FILES': False,
+    # be careful then more dalay then more time of parsing, especially if you have more places - seconds
+    'MIN_DELAY_BETWEEN_REQUESTS': 1,
+    'MAX_DELAY_BETWEEN_REQUESTS': 3,
+    # each X requests will be create new Session
+    'COUNT_REQUESTS_FOR_ONE_SESSION': 100,
+    'CSV_DELIMITER': '#',
 }
