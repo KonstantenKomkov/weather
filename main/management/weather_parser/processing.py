@@ -1,5 +1,5 @@
 from datetime import datetime
-from parser_main.management.weather_parser.db import db
+from main.management.weather_parser.db import db
 
 
 def get_cloudiness_id(db_cloudiness_list: list, value: str):
