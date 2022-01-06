@@ -16,7 +16,7 @@ import main.management.weather_parser.classes as classes
 from weather.app_models import Yandex
 from weather.settings import WEATHER_PARSER
 
-browsers = ['Chrome', 'Firefox', 'Yandex']
+browsers = ['Chrome', 'Firefox', 'Opera', 'Edge']
 
 
 def get_start_date(s: str) -> date:
@@ -139,16 +139,16 @@ def get_text_with_link_on_weather_data_file(current_session: Session, ws_id: str
         I use sessionw and headers because site return text - 'Error #FS000;'
         in otherwise.
     """
-    phpsessid = None
-    for x in current_session.cookies.items():
-        if x[0] == 'PHPSESSID':
-            phpsessid = x[1]
-    if url == 'https://rp5.ru':
-        current_session.headers = rp5_ru_headers.get_header(current_session.cookies.items()[0][1], choice(browsers))
-    elif url == 'https://rp5.md':
+    phpsessid = get_phpsessid(current_session.cookies.items())
+    if url == 'https://rp5.ru' and phpsessid is not None:
+        current_session.headers = rp5_ru_headers.get_header(phpsessid, choice(browsers))
+    elif url == 'https://rp5.md' and phpsessid is not None:
         current_session.headers = rp5_md_headers.get_header(phpsessid, 'Chrome')
+    elif phpsessid is not None:
+        current_session.headers = rp5_ru_headers.get_header(phpsessid, choice(browsers))
     else:
-        current_session.headers = rp5_ru_headers.get_header(current_session.cookies.items()[0][1], choice(browsers))
+        print("phpsessid is None")
+        raise
     try:
         if data_type == 0:
             result: Response = current_session.post(
@@ -250,3 +250,11 @@ def get_link_type(links: list, static_root: str, delimiter: str) -> list[list[st
                     write_line([place, element.find("a")["href"], 2])
         sleep(randint(WEATHER_PARSER['MIN_DELAY_BETWEEN_REQUESTS'], WEATHER_PARSER['MAX_DELAY_BETWEEN_REQUESTS']))
     return result
+
+
+def get_phpsessid(items) -> str | None:
+    phpsessid = None
+    for x in items:
+        if x[0] == 'PHPSESSID':
+            phpsessid = x[1]
+    return phpsessid

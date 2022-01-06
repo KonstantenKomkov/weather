@@ -1,5 +1,5 @@
 import configparser
-from app_models import App, Database, Yandex
+from weather.app_models import App, Database, Yandex
 
 
 def try_parse(value: str) -> int | bool:

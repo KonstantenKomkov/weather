@@ -1,11 +1,9 @@
-import configparser
 from pydal import DAL, Field
+from weather.settings import app
 
 
-config = configparser.ConfigParser()
-config.read("config.ini")
-db = DAL(f'postgres://{config["db"]["user"]}:{config["db"]["password"]}@{config["db"]["host"]}/'
-         f'{config["db"]["database"]}', migrate=False)
+db = DAL(f'postgres://{app.database.user}:{app.database.password}@{app.database.host}/'
+         f'{app.database.name}', migrate=False)
 
 db.define_table('countries', Field('name', length=50, rname='"name"'))
 db.define_table('cities', Field('country_id', 'reference countries', ondelete='CASCADE'),

@@ -1,5 +1,7 @@
 from datetime import date, datetime, timedelta
 from os import listdir, mkdir, path, remove
+from typing import AnyStr
+
 from requests import Session, Response
 from random import randint
 from time import sleep
@@ -12,12 +14,12 @@ import main.management.weather_parser.rp5_parser as rp5_parser
 import main.management.weather_parser.processing as processing
 import main.management.weather_parser.weather_csv as weather_csv
 import main.management.weather_parser.queries as queries
-from weather.settings import App, WEATHER_PARSER, STATIC_ROOT
+from weather.settings import app, WEATHER_PARSER, STATIC_ROOT
 
 
-SAVE_IN_DB: bool = False if App.database.name == '' else True
+SAVE_IN_DB: bool = False if app.database.name == '' else True
 DELIMITER: str = WEATHER_PARSER['CSV_DELIMITER']
-_STATIC_ROOT = STATIC_ROOT / 'csv_data'
+_STATIC_ROOT = f"{STATIC_ROOT}\\csv_data\\"
 current_session: Session
 
 
@@ -40,7 +42,7 @@ def get_all_data() -> None:
             url = station.link[0:14]
 
             if station.start_date is None or station.number is None:
-                is_error, station = rp5_parser.get_missing_ws_info(current_session, station, App.yandex)
+                is_error, station = rp5_parser.get_missing_ws_info(current_session, station, app.yandex)
                 print(f"Start getting data for {station.place} with "
                       f"start date of observations {station.start_date}...")
 
@@ -141,14 +143,18 @@ def get_weather_for_year(start_date: date, number: str, ws_id: int, url: str, da
         answer: Response = rp5_parser.get_text_with_link_on_weather_data_file(
             current_session, number, start_date, last_date, url, data_type, metar)
         count = 5
-        while answer.text == "Error #FS000;" and count > 0:
+        while (answer.text == "Error #FS000;" or answer.text == "Error #FM004;") and count > 0:
             sleep(5)
             answer = rp5_parser.get_text_with_link_on_weather_data_file(
                 current_session, number, start_date, last_date, url, data_type, metar)
             count -= 1
         else:
-            if answer.text == "Error #FS000;":
-                raise ValueError(f'Ссылка на скачивание архива не найдена! Text: {answer.text}')
+            if answer.text == "Error #FS000;" or answer.text == "Error #FM004;":
+                print(f'Ссылка на скачивание архива не найдена! Text: {answer.text}')
+                return False
+            # if answer.text == "Error #FS000;":
+            #     raise ValueError(f'Ссылка на скачивание архива не найдена! Text: {answer.text}')
+            # raise ValueError(f'Ссылка на скачивание архива не найдена! Text: {answer.text}')
 
         download_link: str = rp5_parser.get_link_archive_file(answer.text)
 
@@ -163,12 +169,12 @@ def get_weather_for_year(start_date: date, number: str, ws_id: int, url: str, da
 
             if SAVE_IN_DB:
                 if data_type == 0:
-                    parsed_data: bytes = str.encode(processing.weather_stations_data_processing(
-                        DELIMITER, csv_weather_data.splitlines(), ws_id))
+                    parsed_data: AnyStr = processing.weather_stations_data_processing(
+                        DELIMITER, csv_weather_data.splitlines(), ws_id)
                     file.write(parsed_data)
                 elif data_type == 1:
-                    parsed_data: bytes = str.encode(
-                        processing.metar_data_processing(DELIMITER, csv_weather_data.splitlines(), ws_id))
+                    parsed_data: AnyStr = \
+                        processing.metar_data_processing(DELIMITER, csv_weather_data.splitlines(), ws_id)
                     file.write(parsed_data)
             else:
                 file.write(str.encode(csv_weather_data))
@@ -217,7 +223,6 @@ def create_csv_by_country(url) -> None:
     global _STATIC_ROOT, DELIMITER
 
     pages = deque([url])
-    # TODO: another variable isn't used. Она нужна чтобы посмотреть на ссылки, которые не были добавлены
     links, another = rp5_parser.get_pages_with_weather_at_place(pages)
 
     if len(another) > 0:

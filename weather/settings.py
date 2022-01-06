@@ -11,10 +11,10 @@ https://docs.djangoproject.com/en/3.2/ref/settings/
 """
 
 from pathlib import Path
-import read_config
+import weather.read_config as rc
 from weather.app_models import App
 
-app: App = read_config.read_config()
+app: App = rc.read_config()
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -22,7 +22,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/3.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = App.secret_key
+SECRET_KEY = app.secret_key
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
@@ -83,11 +83,11 @@ WSGI_APPLICATION = 'weather.wsgi.application'
 
 DATABASES = {
     'default': {
-        'ENGINE': App.database.engine,
-        'NAME': App.database.name,
-        'USER': App.database.user,
-        'PASSWORD': App.database.password,
-        'HOST': App.database.host,
+        'ENGINE': app.database.engine,
+        'NAME': app.database.name,
+        'USER': app.database.user,
+        'PASSWORD': app.database.password,
+        'HOST': app.database.host,
     }
 }
 
