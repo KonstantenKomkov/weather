@@ -14,6 +14,7 @@ import main.management.weather_parser.rp5_md_headers as rp5_md_headers
 import main.management.weather_parser.yandex_headers as ya
 import main.management.weather_parser.classes as classes
 from weather.app_models import Yandex
+from weather.settings import WEATHER_PARSER
 
 browsers = ['Chrome', 'Firefox', 'Yandex']
 
@@ -89,26 +90,26 @@ def find_metar(soup) -> int:
 
 def get_missing_ws_info(
         current_session: Session,
-        save_in_db: bool, station: classes.WeatherStation,
-        yandex: Yandex) -> Tuple[bool, classes.WeatherStation]:
+        station: classes.WeatherStation,
+        yandex: Yandex) -> Tuple[bool, classes.WeatherStation | None]:
     """ Getting country, numbers weather station, start date of observations, from site rp5.ru."""
 
-    # TODO: добавить условие для параметра save_in_db
-    status: bool = False
     try:
         response = current_session.get(station.link)
     except HTTPError as http_err:
         print(f'HTTP error occurred: {http_err}')
+        return True, None
     except Exception as err:
         print(f'Other error occurred: {err}')
+        return True, None
     else:
         soup = BeautifulSoup(response.text, 'lxml')
-        status = True
+        is_error = False
         if str(soup) == '<html><body><h1>Error 404. Page not found!</h1><br/></body></html>':
-            status = False
+            is_error = True
         elif soup.find("img", src="/images/404.png") is not None:
             print('Find image with 404')
-            status = False
+            is_error = True
         else:
             # Get station.number
             wmo_id = soup.find("input", id="wmo_id")
@@ -128,7 +129,7 @@ def get_missing_ws_info(
 
             station.country = find_country_by_coordinates(yandex, station.latitude, station.longitude)
             station.metar = 0 if station.data_type == 0 else find_metar(soup)
-    return status, station
+    return is_error, station
 
 
 def get_text_with_link_on_weather_data_file(current_session: Session, ws_id: str, start_date: date, last_date: date,
@@ -211,7 +212,7 @@ def get_pages_with_weather_at_place(pages: deque) -> tuple[list, list]:
     return links, another
 
 
-def get_link_type(links: list, static_root, delimiter) -> list[list[str, str, int]]:
+def get_link_type(links: list, static_root: str, delimiter: str) -> list[list[str, str, int]]:
     """Function get links and types of weather stations by list of places links."""
 
     def get_place(url: str) -> str:
@@ -226,8 +227,7 @@ def get_link_type(links: list, static_root, delimiter) -> list[list[str, str, in
     current_session = Session()
     for i, link in enumerate(links):
         print(i)
-        # TODO: Вынести этот параметр в настройки или конфиг (для каждой сотой ссылки создаём новую сессию)
-        if i % 100 == 0:
+        if i % WEATHER_PARSER['COUNT_REQUESTS_FOR_ONE_SESSION'] == 0:
             current_session = Session()
         response = current_session.get(link)
         soup = BeautifulSoup(response.text, 'lxml')
@@ -248,7 +248,5 @@ def get_link_type(links: list, static_root, delimiter) -> list[list[str, str, in
                 if [place, element.find("a")["href"], 2] not in result:
                     result.append([place, element.find("a")["href"], 2])
                     write_line([place, element.find("a")["href"], 2])
-        # TODO: Вынести этот параметр в настройки или конфиг (рандомный интервал секунд - (1, 3) на который засыпаем,
-        #  после выполнения запроса)
-        sleep(randint(1, 3))
+        sleep(randint(WEATHER_PARSER['MIN_DELAY_BETWEEN_REQUESTS'], WEATHER_PARSER['MAX_DELAY_BETWEEN_REQUESTS']))
     return result

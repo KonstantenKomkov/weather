@@ -15,28 +15,117 @@ import main.management.weather_parser.queries as queries
 from weather.settings import App, WEATHER_PARSER, STATIC_ROOT
 
 
-SAVE_IN_DB = False if App.database.name == '' else True
-DELIMITER = WEATHER_PARSER['CSV_DELIMITER']
+SAVE_IN_DB: bool = False if App.database.name == '' else True
+DELIMITER: str = WEATHER_PARSER['CSV_DELIMITER']
 _STATIC_ROOT = STATIC_ROOT / 'csv_data'
 current_session: Session
 
 
-def create_directory(ws: WeatherStation):
-    try:
-        mkdir(rf"{_STATIC_ROOT}{ws.number}")
-    except OSError as e:
-        # 17 - FileExistsError, folder was created earlier.
-        if e.errno != 17:
-            raise
-        pass
+def get_all_data() -> None:
+    """ Function get all weather data for all weather stations from csv file
+        from start date of observations to today or update data from date of last
+        getting weather."""
+    global current_session
+    links_with_error: list[WeatherStation] = list()
+    wanted_stations = weather_csv.read_csv_file(_STATIC_ROOT, DELIMITER)
+
+    indexes_of_duplicates = list()
+    if wanted_stations:
+
+        station: WeatherStation
+        for index, station in enumerate(wanted_stations):
+
+            current_session = Session()
+
+            url = station.link[0:14]
+
+            if station.start_date is None or station.number is None:
+                is_error, station = rp5_parser.get_missing_ws_info(current_session, station, App.yandex)
+                print(f"Start getting data for {station.place} with "
+                      f"start date of observations {station.start_date}...")
+
+                # Link return code 404 or another error
+                if is_error:
+                    links_with_error.append(station)
+                    print("Error link - data not loaded")
+                    continue
+                else:
+                    # На метеостанцию может быть несколько разных ссылок, поэтому надо проверять станции на
+                    # уникальность по: number, latitude, longitude
+                    unique = True
+
+                    if index != 0:
+                        for ws in wanted_stations[:index - 1]:
+                            if station.number == ws.number and station.latitude == ws.latitude and \
+                                    station.longitude == ws.longitude:
+                                indexes_of_duplicates.append(index)
+                                unique = False
+                                break
+                    if not unique:
+                        print("Not unique link - data not loaded")
+                        continue
+            else:
+                print(f"Start getting data for {station.place} with last "
+                      f"date of loading {(station.start_date - timedelta(days=1)).strftime('%Y.%m.%d')} ...")
+            create_directory(station)
+            start_year: int = station.start_date.year
+            if SAVE_IN_DB:
+                # Скользящая ошибка
+                count = 5
+                while count > 0:
+                    count -= 1
+                    try:
+                        x = queries.get_country_id(station.country)
+                        # print(x)
+                        temp = db.executesql(x)
+                        db.commit()
+                        # print(temp)
+                        break
+                    except Exception as e:
+                        print(f'Error in country query: {e}')
+                else:
+                    print(f"Can't get country id from db after {count} attempts")
+                    raise
+                country_id = temp[0][0]
+                # end of error
+                place_id = db.executesql(queries.get_city_id(station.place, country_id))[0][0]
+                db.commit()
+                station.ws_id = db.executesql(queries.get_ws_id(station, place_id, country_id))[0][0]
+                db.commit()
+            flag = False
+            while start_year < datetime.now().year + 1:
+                if start_year == station.start_date.year:
+                    start_date: date = station.start_date
+                else:
+                    start_date: date = date(start_year, 1, 1)
+                flag = get_weather_for_year(start_date, station.number, station.ws_id, url, station.data_type,
+                                            station.metar)
+                start_year += 1
+            station.start_date = datetime.now().date() - timedelta(days=1)
+            if flag:
+                if SAVE_IN_DB:
+                    load_data_from_csv(station.number, station.data_type)
+                weather_csv.update_csv_file(_STATIC_ROOT, DELIMITER, station, index)
+                # Use timeout between sessions for concealment
+                sleep(randint(WEATHER_PARSER['MIN_DELAY_BETWEEN_REQUESTS'],
+                              WEATHER_PARSER['MAX_DELAY_BETWEEN_REQUESTS']))
+                print("Data was loaded!")
+            current_session.close()
+    weather_csv.delete_duplicates_weather_stations(indexes_of_duplicates, len(wanted_stations), _STATIC_ROOT)
+    print("All data was loaded.")
+
+    if links_with_error:
+        print("Links which returned code 404 or another errors:")
+        for station in links_with_error:
+            print(station)
 
 
-def get_weather_for_year(start_date: date, number: str, ws_id: int, url: str, data_type: int, metar: int):
+def get_weather_for_year(start_date: date, number: str, ws_id: int, url: str, data_type: int, metar: int) -> bool:
     """ Function get archive file from site rp5.ru with weather data for one year
         and save it at directory."""
 
     global current_session, SAVE_IN_DB
-    yesterday = datetime.now().date() - timedelta(days=1)
+    yesterday: date = datetime.now().date() - timedelta(days=1)
     if start_date < datetime.now().date():
         # Period must be year or less
         if datetime.now().date() > date(start_date.year, 12, 31):
@@ -49,7 +138,7 @@ def get_weather_for_year(start_date: date, number: str, ws_id: int, url: str, da
         if not current_session.cookies.items():
             current_session.get('https://rp5.ru/')
 
-        answer = rp5_parser.get_text_with_link_on_weather_data_file(
+        answer: Response = rp5_parser.get_text_with_link_on_weather_data_file(
             current_session, number, start_date, last_date, url, data_type, metar)
         count = 5
         while answer.text == "Error #FS000;" and count > 0:
@@ -61,12 +150,12 @@ def get_weather_for_year(start_date: date, number: str, ws_id: int, url: str, da
             if answer.text == "Error #FS000;":
                 raise ValueError(f'Ссылка на скачивание архива не найдена! Text: {answer.text}')
 
-        download_link = rp5_parser.get_link_archive_file(answer.text)
+        download_link: str = rp5_parser.get_link_archive_file(answer.text)
 
         with open(f'{_STATIC_ROOT}{number}/{start_date.year}.csv', "wb") as file:
-            response = current_session.get(download_link)
+            response: Response = current_session.get(download_link)
             while response.status_code != 200:
-                response: Response = current_session.get(download_link)
+                response = current_session.get(download_link)
 
             # unzip .gz archive
             decompress: bytes = zlib.decompress(response.content, wbits=zlib.MAX_WBITS | 16)
@@ -91,7 +180,7 @@ def get_weather_for_year(start_date: date, number: str, ws_id: int, url: str, da
         raise ValueError(f"Query to future {start_date.strftime('%Y.%m.%d')}!")
 
 
-def load_data_from_csv(folder: str, data_type: int):
+def load_data_from_csv(folder: str, data_type: int) -> None:
     global _STATIC_ROOT
 
     if path.isdir(f"{_STATIC_ROOT}{folder}"):
@@ -116,98 +205,11 @@ def load_data_from_csv(folder: str, data_type: int):
                         print(f"My error: {e.pgcode}. File in folder {folder}\\{weather_file}.")
                         raise
                     else:
+                        if not WEATHER_PARSER['DELETE_CSV_FILES']:
+                            remove(f"{_STATIC_ROOT}{folder}\\{weather_file}")
+                else:
+                    if not WEATHER_PARSER['DELETE_CSV_FILES']:
                         remove(f"{_STATIC_ROOT}{folder}\\{weather_file}")
-                else:
-                    remove(f"{_STATIC_ROOT}{folder}\\{weather_file}")
-
-
-def get_all_data() -> list[WeatherStation]:
-    """ Function get all weather data for all weather stations from csv file
-        from start date of observations to today or update data from date of last
-        getting weather."""
-    global current_session
-    links_with_404: list[WeatherStation] = list()
-    wanted_stations = weather_csv.read_csv_file(_STATIC_ROOT, DELIMITER)
-
-    indexes_of_duplicates = list()
-    if wanted_stations:
-
-        station: WeatherStation
-        for index, station in enumerate(wanted_stations):
-
-            current_session = Session()
-
-            url = station.link[0:14]
-
-            if station.start_date is None or station.number is None:
-                status, station = rp5_parser.get_missing_ws_info(current_session, SAVE_IN_DB, station, App.yandex)
-                print(f"Start getting data for {station.place} with "
-                      f"start date of observations {station.start_date}...")
-
-                # Link return code 404 - page not found
-                if not status:
-                    links_with_404.append(station)
-                    continue
-            else:
-                print(f"Start getting data for {station.place} with last "
-                      f"date of loading {(station.start_date - timedelta(days=1)).strftime('%Y.%m.%d')} ...")
-
-            # На метеостанцию может быть несколько разных ссылок, поэтому надо проверять станции на уникальность по:
-            # number, latitude, longitude
-            unique = True
-            if index != 0:
-                for ws in wanted_stations[:index - 1]:
-                    if station.number == ws.number and station.latitude == ws.latitude and \
-                            station.longitude == ws.longitude:
-                        indexes_of_duplicates.append(index)
-                        unique = False
-                        break
-            if not unique:
-                continue
-
-            create_directory(station)
-            start_year: int = station.start_date.year
-            if SAVE_IN_DB:
-                # Скользящая ошибка
-                db.commit()
-                count = 5
-                while count > 0:
-                    count -= 1
-                    try:
-                        x = queries.get_country_id(station.country)
-                        # print(x)
-                        temp = db.executesql(x)
-                        # print(temp)
-                        break
-                    except Exception as e:
-                        print(f'Error in country query: {e}')
-                else:
-                    print(f"Can't get country id from db after {count} attempts")
-                    raise
-                country_id = temp[0][0]
-                # end of error
-                place_id = db.executesql(queries.get_city_id(station.place, country_id))[0][0]
-                station.ws_id = db.executesql(queries.get_ws_id(station, place_id, country_id))[0][0]
-                db.commit()
-            flag = False
-            while start_year < datetime.now().year + 1:
-                if start_year == station.start_date.year:
-                    start_date: date = station.start_date
-                else:
-                    start_date: date = date(start_year, 1, 1)
-                flag = get_weather_for_year(start_date, station.number, station.ws_id, url, station.data_type,
-                                            station.metar)
-                start_year += 1
-            station.start_date = datetime.now().date() - timedelta(days=1)
-            if flag:
-                if SAVE_IN_DB:
-                    load_data_from_csv(station.number, station.data_type)
-                weather_csv.update_csv_file(_STATIC_ROOT, DELIMITER, station, index)
-                # Use timeout between sessions for concealment
-                sleep(randint(3, 10))
-                print("Data was loaded!")
-            current_session.close()
-    return links_with_404
 
 
 def create_csv_by_country(url) -> None:
@@ -217,6 +219,9 @@ def create_csv_by_country(url) -> None:
     pages = deque([url])
     # TODO: another variable isn't used. Она нужна чтобы посмотреть на ссылки, которые не были добавлены
     links, another = rp5_parser.get_pages_with_weather_at_place(pages)
+
+    if len(another) > 0:
+        print(f"Another links which was not included in links array\n {another}")
 
     with open(f"{_STATIC_ROOT}links.txt", "w", encoding="utf-8") as file:
         for link in links:
@@ -231,7 +236,6 @@ def create_csv_by_country(url) -> None:
 
     # Получаем list[list[str - название места, str - url, int - тип]] ,
     # через каждые X ссылок начинаем новую сессию
-    # TODO: вынести логику создания новой сессии в отдельную функцию
     rp5_parser.get_link_type(links, _STATIC_ROOT, DELIMITER)
 
     # If you start find_sources command from the middle
@@ -282,3 +286,13 @@ def update_sources() -> None:
                     file.write(DELIMITER.join(map(str, source)))
                 else:
                     file.write(DELIMITER.join(map(str, source)))
+
+
+def create_directory(ws: WeatherStation) -> None:
+    try:
+        mkdir(rf"{_STATIC_ROOT}{ws.number}")
+    except OSError as e:
+        # 17 - FileExistsError, folder was created earlier.
+        if e.errno != 17:
+            raise
+        pass

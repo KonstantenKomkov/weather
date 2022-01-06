@@ -52,15 +52,17 @@ def get_ws_id(station: classes.WeatherStation, place_id: int, country_id: int) -
     print(f"{station.number=}, {station.link=}, {place_id=}, {country_id=}, {data_type=}, {station.latitude=}, "
           f"{station.longitude=}, {station.start_date=}")
     return "WITH s as (SELECT id, \"number\", latitude, longitude, rp5_link, last_date, data_type, place_id, " \
-           "country_id FROM weather_stations WHERE \"number\" = '%(number)s' and rp5_link = '%(link)s' and place_id = " \
-           "%(place_id)i and country_id = %(country_id)i and data_type = '%(data_type)s'), i as (INSERT INTO " \
-           "weather_stations (\"number\", latitude, longitude, rp5_link, last_date, data_type, place_id, country_id) " \
-           "SELECT '%(number)s', %(latitude)f, %(longitude)f, '%(link)s', '%(start_date)s', '%(data_type)s', " \
-           "%(place_id)i, %(country_id)i WHERE NOT EXISTS (SELECT 1 FROM s) RETURNING id, \"number\", latitude, " \
-           "longitude, rp5_link, last_date, data_type, place_id, country_id) SELECT id FROM i UNION ALL SELECT id " \
-           "FROM s" % {'number': station.number, 'link': station.link, 'place_id': place_id,
-                       'country_id': country_id, 'data_type': data_type, 'latitude': station.latitude,
-                       'longitude': station.longitude, 'start_date': station.start_date}
+           "country_id FROM weather_stations WHERE \"number\" = '%(number)s' and rp5_link = '%(link)s' and " \
+           "place_id = %(place_id)i and country_id = %(country_id)i and data_type = '%(data_type)s'), i as (INSERT " \
+           "INTO weather_stations (\"number\", latitude, longitude, rp5_link, last_date, data_type, place_id, " \
+           "country_id) SELECT '%(number)s', %(latitude)f, %(longitude)f, '%(link)s', '%(start_date)s', " \
+           "'%(data_type)s', %(place_id)i, %(country_id)i WHERE NOT EXISTS (SELECT 1 FROM s) RETURNING id, " \
+           "\"number\", latitude, longitude, rp5_link, last_date, data_type, place_id, country_id) SELECT id " \
+           "FROM i UNION ALL SELECT id FROM s" % {
+               'number': station.number, 'link': station.link, 'place_id': place_id, 'country_id': country_id,
+               'data_type': data_type, 'latitude': station.latitude, 'longitude': station.longitude,
+               'start_date': station.start_date
+           }
 
 
 def insert_csv_weather_station_data(my_path: str, delimiter: str) -> str:

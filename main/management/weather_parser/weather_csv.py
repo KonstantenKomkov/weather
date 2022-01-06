@@ -41,27 +41,27 @@ def read_csv_file(static_root: str, delimiter: str) -> [classes.WeatherStation]:
     return stations
 
 
-def update_csv_file(static_root: str, delimiter, station: classes.WeatherStation, index: int):
+def update_csv_file(static_root: str, delimiter: str, station: classes.WeatherStation, index: int):
     """ Function update file with our wanted weather stations.
         It write current date and id of weather station."""
 
     with open(f"{static_root}cities.txt", "r+", encoding="utf-8") as csv_file:
         lines_list = csv_file.readlines()
-        line_list = lines_list[index].split("#")
+        line_list = lines_list[index].split(delimiter)
         if line_list[1] == station.link:
             if len(line_list) == 3:
-                lines_list[index] = f"{station.to_csv('#')}\n"
+                lines_list[index] = f"{station.to_csv(delimiter)}\n"
                 csv_file.seek(0)
                 csv_file.write("".join(lines_list))
             else:
                 line_list[3] = station.start_date.strftime("%Y-%m-%d")
-                updated_line = "#".join(line_list)
+                updated_line = delimiter.join(line_list)
                 lines_list[index] = f"{updated_line}"
                 csv_file.seek(0)
                 csv_file.write("".join(lines_list))
 
 
-def delete_duplicates_weather_stations(indexes_of_duplicates, len_ws_list):
+def delete_duplicates_weather_stations(indexes_of_duplicates: list, len_ws_list: int, static_root):
 
     with open(f"{static_root}cities.txt", "r", encoding="utf-8") as csv_file:
         lines_list = csv_file.readlines()
