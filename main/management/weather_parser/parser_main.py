@@ -138,18 +138,19 @@ def get_weather_for_year(start_date: date, number: str, ws_id: int, url: str, da
 
         # Cookies might be empty, then get PHPSESSID
         if not current_session.cookies.items():
-            current_session.get('https://rp5.ru/')
+            current_session.get(url)
 
         answer: Response = rp5_parser.get_text_with_link_on_weather_data_file(
             current_session, number, start_date, last_date, url, data_type, metar)
         count = 5
-        while (answer.text == "Error #FS000;" or answer.text == "Error #FM004;") and count > 0:
+        # while (answer.text == "Error #FS000;" or answer.text == "Error #FM004;" or answer.text == "") and count > 0:
+        while answer.text.find('http') == -1 and count > 0:
             sleep(5)
             answer = rp5_parser.get_text_with_link_on_weather_data_file(
                 current_session, number, start_date, last_date, url, data_type, metar)
             count -= 1
         else:
-            if answer.text == "Error #FS000;" or answer.text == "Error #FM004;":
+            if answer.text == "Error #FS000;" or answer.text == "Error #FM004;" or answer.text == "":
                 print(f'Ссылка на скачивание архива не найдена! Text: {answer.text}')
                 return False
             # if answer.text == "Error #FS000;":

@@ -140,6 +140,11 @@ def get_text_with_link_on_weather_data_file(current_session: Session, ws_id: str
         in otherwise.
     """
     phpsessid = get_phpsessid(current_session.cookies.items())
+    # если сессия перестала быть актуальна
+    if phpsessid is None:
+        current_session = Session()
+        current_session.get(url)
+        phpsessid = get_phpsessid(current_session.cookies.items())
     if url == 'https://rp5.ru' and phpsessid is not None:
         current_session.headers = rp5_ru_headers.get_header(phpsessid, choice(browsers))
     elif url == 'https://rp5.md' and phpsessid is not None:
