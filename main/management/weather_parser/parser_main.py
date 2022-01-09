@@ -1,3 +1,4 @@
+import traceback
 from datetime import date, datetime, timedelta
 from os import listdir, mkdir, path, remove
 from typing import AnyStr
@@ -16,18 +17,19 @@ import main.management.weather_parser.weather_csv as weather_csv
 import main.management.weather_parser.queries as queries
 from weather.settings import app, WEATHER_PARSER, STATIC_ROOT
 
-
 SAVE_IN_DB: bool = False if app.database.name == '' else True
 DELIMITER: str = WEATHER_PARSER['CSV_DELIMITER']
 _STATIC_ROOT = f"{STATIC_ROOT}\\csv_data\\"
-current_session: Session
+current_session = Session()
+now: datetime = datetime.now()
+yesterday: date = now.date() - timedelta(days=1)
 
 
 def get_all_data() -> None:
     """ Function get all weather data for all weather stations from csv file
         from start date of observations to today or update data from date of last
         getting weather."""
-    global current_session
+    global current_session, now, yesterday
     links_with_error: list[WeatherStation] = list()
     wanted_stations = weather_csv.read_csv_file(_STATIC_ROOT, DELIMITER)
 
@@ -37,9 +39,8 @@ def get_all_data() -> None:
         station: WeatherStation
         for index, station in enumerate(wanted_stations):
 
-            current_session = Session()
-
-            url = station.link[0:14]
+            if index > 0:
+                current_session = recreate_session(current_session)
 
             if station.start_date is None or station.number is None:
                 is_error, station = rp5_parser.get_missing_ws_info(current_session, station, app.yandex)
@@ -66,9 +67,17 @@ def get_all_data() -> None:
                     if not unique:
                         print("Not unique link - data not loaded")
                         continue
+                    if station.start_date == now.date():
+                        print("Start date of observations for that station is today, we should get all weather date "
+                              "tomorrow")
+                        continue
+            elif station.start_date - timedelta(days=1) == yesterday:
+                print("Data is actual")
+                continue
             else:
                 print(f"Start getting data for {station.place} with last "
                       f"date of loading {(station.start_date - timedelta(days=1)).strftime('%Y.%m.%d')} ...")
+
             create_directory(station)
             start_year: int = station.start_date.year
             if SAVE_IN_DB:
@@ -81,9 +90,9 @@ def get_all_data() -> None:
                         # print(x)
                         temp = db.executesql(x)
                         db.commit()
-                        # print(temp)
                         break
                     except Exception as e:
+                        print('Ошибка:\n', traceback.format_exc())
                         print(f'Error in country query: {e}')
                 else:
                     print(f"Can't get country id from db after {count} attempts")
@@ -95,15 +104,16 @@ def get_all_data() -> None:
                 station.ws_id = db.executesql(queries.get_ws_id(station, place_id, country_id))[0][0]
                 db.commit()
             flag = False
-            while start_year < datetime.now().year + 1:
+            while start_year < now.year + 1:
                 if start_year == station.start_date.year:
                     start_date: date = station.start_date
                 else:
                     start_date: date = date(start_year, 1, 1)
-                flag = get_weather_for_year(start_date, station.number, station.ws_id, url, station.data_type,
+                flag = get_weather_for_year(start_date, station.number, station.ws_id, station.link[0:14],
+                                            station.data_type,
                                             station.metar)
                 start_year += 1
-            station.start_date = datetime.now().date() - timedelta(days=1)
+            station.start_date = yesterday
             if flag:
                 if SAVE_IN_DB:
                     load_data_from_csv(station.number, station.data_type)
@@ -112,7 +122,6 @@ def get_all_data() -> None:
                 sleep(randint(WEATHER_PARSER['MIN_DELAY_BETWEEN_REQUESTS'],
                               WEATHER_PARSER['MAX_DELAY_BETWEEN_REQUESTS']))
                 print("Data was loaded!")
-            current_session.close()
     weather_csv.delete_duplicates_weather_stations(indexes_of_duplicates, len(wanted_stations), _STATIC_ROOT)
     print("All data was loaded.")
 
@@ -126,11 +135,10 @@ def get_weather_for_year(start_date: date, number: str, ws_id: int, url: str, da
     """ Function get archive file from site rp5.ru with weather data for one year
         and save it at directory."""
 
-    global current_session, SAVE_IN_DB
-    yesterday: date = datetime.now().date() - timedelta(days=1)
-    if start_date < datetime.now().date():
+    global current_session, SAVE_IN_DB, now, yesterday
+    if start_date < now.date():
         # Period must be year or less
-        if datetime.now().date() > date(start_date.year, 12, 31):
+        if now.date() > date(start_date.year, 12, 31):
             last_date: date = date(start_date.year, 12, 31)
         else:
             # minus one day because not all data for today will be load
@@ -145,11 +153,12 @@ def get_weather_for_year(start_date: date, number: str, ws_id: int, url: str, da
         count = 5
         # while (answer.text == "Error #FS000;" or answer.text == "Error #FM004;" or answer.text == "") and count > 0:
         while answer.text.find('http') == -1 and count > 0:
-            sleep(5)
+            sleep(WEATHER_PARSER['MAX_DELAY_BETWEEN_REQUESTS'])
             answer = rp5_parser.get_text_with_link_on_weather_data_file(
                 current_session, number, start_date, last_date, url, data_type, metar)
             count -= 1
         else:
+            print(f"{count=}")
             if answer.text == "Error #FS000;" or answer.text == "Error #FM004;" or answer.text == "":
                 print(f'Ссылка на скачивание архива не найдена! Text: {answer.text}')
                 return False
@@ -180,9 +189,6 @@ def get_weather_for_year(start_date: date, number: str, ws_id: int, url: str, da
             else:
                 file.write(str.encode(csv_weather_data))
         return True
-    elif start_date == datetime.now().date():
-        print('Data is actual.')
-        return False
     else:
         raise ValueError(f"Query to future {start_date.strftime('%Y.%m.%d')}!")
 
@@ -302,3 +308,9 @@ def create_directory(ws: WeatherStation) -> None:
         if e.errno != 17:
             raise
         pass
+
+
+def recreate_session(session: Session) -> Session:
+    session.close()
+    session = Session()
+    return session
