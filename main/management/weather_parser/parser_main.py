@@ -16,6 +16,7 @@ import main.management.weather_parser.processing as processing
 import main.management.weather_parser.weather_csv as weather_csv
 import main.management.weather_parser.queries as queries
 from weather.settings import app, WEATHER_PARSER, STATIC_ROOT
+from main.models import Country
 
 SAVE_IN_DB: bool = False if app.database.name == '' else True
 DELIMITER: str = WEATHER_PARSER['CSV_DELIMITER']
@@ -81,13 +82,17 @@ def get_all_data() -> None:
             create_directory(station)
             start_year: int = station.start_date.year
             if SAVE_IN_DB:
+                # TODO: выбираем все страны из бд и делаем вставку в бд если страны с таким именем нет
+                # if index == 0:
+                #     countries: list[Country] = list(Country.objects.all())
+                # if countries:
                 # Скользящая ошибка
                 count = 5
                 while count > 0:
                     count -= 1
                     try:
                         x = queries.get_country_id(station.country)
-                        # print(x)
+                        print(x)
                         temp = db.executesql(x)
                         db.commit()
                         break

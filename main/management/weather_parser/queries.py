@@ -26,7 +26,7 @@ def insert_cloudiness_cl_data():
 
 
 def get_country_id(country):
-    print(country)
+    # print(country)
     return "WITH s as (SELECT id, \"name\" FROM countries WHERE \"name\" = '%(country)s'), i as (INSERT INTO " \
            "countries (\"name\") SELECT '%(country)s' WHERE NOT EXISTS (SELECT 1 FROM s) RETURNING id) SELECT id " \
            "FROM i UNION ALL SELECT id FROM s" % {'country': country}
