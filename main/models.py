@@ -75,6 +75,7 @@ class WeatherStation(models.Model):
     data_type = models.CharField(max_length=50, verbose_name='метеостанция, METAR, метеодатчик',)
     place = models.ForeignKey(Place, on_delete=models.CASCADE, blank=True, null=True, verbose_name='место',)
     country = models.ForeignKey(Country, on_delete=models.CASCADE, verbose_name='страна',)
+    metar = models.IntegerField(null=True, verbose_name='metar параметр для запроса',)
 
     class Meta:
         db_table = 'weather_stations'
