@@ -1,22 +1,19 @@
-import traceback
 from datetime import date, datetime, timedelta
 from os import listdir, mkdir, path, remove
 from typing import AnyStr
-
 from requests import Session, Response
 from random import randint
 from time import sleep
 import zlib
 from collections import deque
 from psycopg2 import Error
-from main.management.weather_parser.classes import WeatherStation
 from main.management.weather_parser.db import db
 import main.management.weather_parser.rp5_parser as rp5_parser
 import main.management.weather_parser.processing as processing
 import main.management.weather_parser.weather_csv as weather_csv
 import main.management.weather_parser.queries as queries
 from weather.settings import app, WEATHER_PARSER, STATIC_ROOT
-from main.models import Country
+from main.models import Country, Place, WeatherStation
 
 SAVE_IN_DB: bool = False if app.database.name == '' else True
 DELIMITER: str = WEATHER_PARSER['CSV_DELIMITER']
@@ -31,15 +28,22 @@ def get_all_data() -> None:
         from start date of observations to today or update data from date of last
         getting weather."""
     global current_session, now, yesterday
+
     links_with_error: list[WeatherStation] = list()
     wanted_stations = weather_csv.read_csv_file(_STATIC_ROOT, DELIMITER)
+    countries: list[Country] = []
+    places: list[Place] = []
+    weather_stations: list[WeatherStation] = []
 
     indexes_of_duplicates = list()
     if wanted_stations:
+        if SAVE_IN_DB:
+            countries = list(Country.objects.all())
+            places = list(Place.objects.all())
+            weather_stations = list(WeatherStation.objects.all())
 
         station: WeatherStation
         for index, station in enumerate(wanted_stations):
-
             if index > 0:
                 current_session = recreate_session(current_session)
 
@@ -82,39 +86,88 @@ def get_all_data() -> None:
             create_directory(station)
             start_year: int = station.start_date.year
             if SAVE_IN_DB:
-                # TODO: выбираем все страны из бд и делаем вставку в бд если страны с таким именем нет
-                # if index == 0:
-                #     countries: list[Country] = list(Country.objects.all())
-                # if countries:
-                # Скользящая ошибка
-                count = 5
-                while count > 0:
-                    count -= 1
-                    try:
-                        x = queries.get_country_id(station.country)
-                        print(x)
-                        temp = db.executesql(x)
-                        db.commit()
-                        break
-                    except Exception as e:
-                        print('Ошибка:\n', traceback.format_exc())
-                        print(f'Error in country query: {e}')
-                else:
-                    print(f"Can't get country id from db after {count} attempts")
-                    raise
-                country_id = temp[0][0]
-                # end of error
-                place_id = db.executesql(queries.get_city_id(station.place, country_id))[0][0]
-                db.commit()
-                station.ws_id = db.executesql(queries.get_ws_id(station, place_id, country_id))[0][0]
-                db.commit()
+                country_id: int | None = None
+                place_id: int | None = None
+
+                if countries:
+                    for country in countries:
+                        if country.name == station.country:
+                            country_id = country.pk
+                            break
+                if country_id is None:
+                    new_country: Country = Country(name=station.country.name)
+                    new_country.save()
+                    countries.append(new_country)
+                    country_id = new_country.pk
+
+                if places:
+                    for place in places:
+                        if place.name == station.place and place.country == country_id:
+                            place_id = place.pk
+                            break
+
+                if place_id is None:
+                    new_place: Place = Place(name=station.place.name, country=country_id)
+                    new_place.save()
+                    places.append(new_place)
+                    place_id = new_place.pk
+
+                if weather_stations:
+                    for weather_station in weather_stations:
+                        if weather_station.country == country_id and \
+                                weather_station.place == place_id and \
+                                weather_station.number == station.number and \
+                                weather_station.rp5_link == station.rp5_link and \
+                                weather_station.data_type == station.data_type:
+                            station = weather_station
+                            break
+                if station.pk is None:
+                    # TODO: писать сразу station to db?
+                    new_weather_station: WeatherStation = WeatherStation(
+                        number=station.number,
+                        latitude=station.latitude,
+                        longitude=station.longitude,
+                        rp5_link=station.rp5_link,
+                        last_date=station.last_date,
+                        data_type=station.data_type,
+                        place=place_id,
+                        country=country_id,
+                        metar=station.metar
+                    )
+                    new_weather_station.save()
+                    wanted_stations.append(new_weather_station)
+                    station = new_weather_station
+
+                # # Скользящая ошибка
+                # count = 5
+                # while count > 0:
+                #     count -= 1
+                #     try:
+                #         x = queries.get_country_id(station.country)
+                #         print(x)
+                #         temp = db.executesql(x)
+                #         db.commit()
+                #         break
+                #     except Exception as e:
+                #         print('Ошибка:\n', traceback.format_exc())
+                #         print(f'Error in country query: {e}')
+                # else:
+                #     print(f"Can't get country id from db after {count} attempts")
+                #     raise
+                # country_id = temp[0][0]
+                # # end of error
+
+                # place_id = db.executesql(queries.get_city_id(station.place, country_id))[0][0]
+                # db.commit()
+                # station.ws_id = db.executesql(queries.get_ws_id(station, place_id, country_id))[0][0]
+                # db.commit()
             flag = False
             while start_year < now.year + 1:
                 if start_year == station.start_date.year:
                     start_date: date = station.start_date
                 else:
                     start_date: date = date(start_year, 1, 1)
-                flag = get_weather_for_year(start_date, station.number, station.ws_id, station.link[0:14],
+                flag = get_weather_for_year(start_date, station.number, station.pk, station.rp5_link[0:14],
                                             station.data_type,
                                             station.metar)
                 start_year += 1
