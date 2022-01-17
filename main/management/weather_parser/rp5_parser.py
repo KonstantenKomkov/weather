@@ -12,7 +12,8 @@ from typing import Tuple
 import main.management.weather_parser.rp5_ru_headers as rp5_ru_headers
 import main.management.weather_parser.rp5_md_headers as rp5_md_headers
 import main.management.weather_parser.yandex_headers as ya
-import main.management.weather_parser.classes as classes
+# import main.management.weather_parser.classes as classes
+from main.models import Country, Place, WeatherStation
 from weather.app_models import Yandex
 from weather.settings import WEATHER_PARSER
 
@@ -49,7 +50,7 @@ def get_coordinates(a: str) -> tuple[float, float] | tuple[None, None]:
         raise (TypeError(f"must be str, not {type(a)}"))
 
 
-def find_country_by_coordinates(yandex: Yandex, latitude, longitude) -> str:
+def find_country_by_coordinates(yandex: Yandex, latitude, longitude) -> Country:
     """Function used yandex maps api and get country by coordinates."""
 
     data = {
@@ -70,11 +71,9 @@ def find_country_by_coordinates(yandex: Yandex, latitude, longitude) -> str:
         json_string = response.text.replace(f'/**/{yandex.id}(', '')
         json_string = json_string[:-2]
         data = loads(json_string)
-        country = \
-            data["data"]["features"][len(data["data"]["features"]) - 1]["properties"]["GeocoderMetaData"][
-                "AddressDetails"][
-                "Country"]["CountryName"]
-    return country
+        return Country(
+            name=data["data"]["features"][len(data["data"]["features"]) - 1]["properties"]["GeocoderMetaData"]["Address\
+            Details"]["Country"]["CountryName"])
 
 
 def find_metar(soup) -> int:
@@ -90,8 +89,8 @@ def find_metar(soup) -> int:
 
 def get_missing_ws_info(
         current_session: Session,
-        station: classes.WeatherStation,
-        yandex: Yandex) -> Tuple[bool, classes.WeatherStation | None]:
+        station: WeatherStation,
+        yandex: Yandex) -> Tuple[bool, WeatherStation | None]:
     """ Getting country, numbers weather station, start date of observations, from site rp5.ru."""
 
     try:

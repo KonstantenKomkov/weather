@@ -91,9 +91,11 @@ def get_all_data() -> None:
 
                 if countries:
                     for country in countries:
-                        if country.name == station.country:
+                        print(type(station))
+                        if country.name == station.country.name:
                             country_id = country.pk
                             break
+
                 if country_id is None:
                     new_country: Country = Country(name=station.country.name)
                     new_country.save()
@@ -102,7 +104,7 @@ def get_all_data() -> None:
 
                 if places:
                     for place in places:
-                        if place.name == station.place and place.country == country_id:
+                        if place.name == station.place.name and place.country == country_id:
                             place_id = place.pk
                             break
 
@@ -120,6 +122,10 @@ def get_all_data() -> None:
                                 weather_station.rp5_link == station.rp5_link and \
                                 weather_station.data_type == station.data_type:
                             station = weather_station
+                            # TODO: Remove it after updating data
+                            if station.metar is not None:
+                                weather_station.metar = station.metar
+                                weather_station.save()
                             break
                 if station.pk is None:
                     # TODO: писать сразу station to db?
@@ -137,7 +143,7 @@ def get_all_data() -> None:
                     new_weather_station.save()
                     wanted_stations.append(new_weather_station)
                     station = new_weather_station
-
+            break
                 # # Скользящая ошибка
                 # count = 5
                 # while count > 0:

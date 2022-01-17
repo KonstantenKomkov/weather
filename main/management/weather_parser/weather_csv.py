@@ -1,8 +1,8 @@
-import main.management.weather_parser.classes as classes
 from datetime import datetime, timedelta
+from main.models import Country, Place, WeatherStation
 
 
-def read_csv_file(static_root: str, delimiter: str) -> [classes.WeatherStation]:
+def read_csv_file(static_root: str, delimiter: str) -> [WeatherStation]:
     """ Get data about new weather stations from csv file for site rp5.ru.
         Csv file structure:
         - place;
@@ -16,32 +16,32 @@ def read_csv_file(static_root: str, delimiter: str) -> [classes.WeatherStation]:
         - longitude or nothing.
     """
 
-    stations: list[classes.WeatherStation] = list()
+    stations: list[WeatherStation] = list()
     with open(f"{static_root}cities.txt", 'r', encoding="utf-8") as f:
         for line in f:
             temp = line.strip('\n').split(delimiter)
             if len(temp) > 3:
-                stations.append(classes.WeatherStation(
+                stations.append(WeatherStation(
                     place=temp[0],
                     link=temp[1],
                     data_type=int(temp[2]),
                     start_date=datetime.strptime(temp[3], '%Y-%m-%d').date() + timedelta(days=1)
                     if temp[3] != 'None' else None,
                     number=temp[4] if temp[4] != 'None' else None,
-                    country=temp[5] if temp[5] != 'None' else None,
-                    ws_id=int(temp[6]) if temp[6] != 'None' else None,
+                    country=Country(name=temp[5] if temp[5] != 'None' else None),
+                    pk=int(temp[6]) if temp[6] != 'None' else None,
                     latitude=float(temp[7]) if temp[7] != 'None' else None,
                     longitude=float(temp[8]) if temp[8] != 'None' else None,
                     metar=int(temp[9]),))
             else:
-                stations.append(classes.WeatherStation(
+                stations.append(WeatherStation(
                     place=temp[0],
                     link=temp[1],
                     data_type=int(temp[2])))
     return stations
 
 
-def update_csv_file(static_root: str, delimiter: str, station: classes.WeatherStation, index: int):
+def update_csv_file(static_root: str, delimiter: str, station: WeatherStation, index: int):
     """ Function update file with our wanted weather stations.
         It write current date and id of weather station."""
 
