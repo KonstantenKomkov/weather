@@ -94,7 +94,7 @@ def get_missing_ws_info(
     """ Getting country, numbers weather station, start date of observations, from site rp5.ru."""
 
     try:
-        response = current_session.get(station.link)
+        response = current_session.get(station.rp5_link)
     except HTTPError as http_err:
         print(f'HTTP error occurred: {http_err}')
         return True, None
@@ -131,7 +131,7 @@ def get_missing_ws_info(
     return is_error, station
 
 
-def get_text_with_link_on_weather_data_file(current_session: Session, ws_id: str, start_date: date, last_date: date,
+def get_text_with_link_on_weather_data_file(current_session: Session, number: str, start_date: date, last_date: date,
                                             url: str, data_type: int, metar: int = None):
     """ Function create query for site rp5.ru with special params for
         getting JS text with link on csv.gz file and returns response of query.
@@ -157,7 +157,7 @@ def get_text_with_link_on_weather_data_file(current_session: Session, ws_id: str
         if data_type == 0:
             result: Response = current_session.post(
                 f"{url}/responses/reFileSynop.php",
-                data={'wmo_id': ws_id, 'a_date1': start_date.strftime('%d.%m.%Y'),
+                data={'wmo_id': number, 'a_date1': start_date.strftime('%d.%m.%Y'),
                       'a_date2': last_date.strftime('%d.%m.%Y'), 'f_ed3': 5, 'f_ed4': 5, 'f_ed5': 17, 'f_pe': 1,
                       'f_pe1': 2, 'lng_id': 2, })
             return result
