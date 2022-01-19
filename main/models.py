@@ -71,6 +71,7 @@ class WeatherStation(models.Model):
     latitude = models.FloatField(verbose_name='широта метеорологической станции',)
     longitude = models.FloatField(verbose_name='долгота метеорологической станции',)
     rp5_link = models.CharField(max_length=255, verbose_name='ссылка на метеостанцию, rp5',)
+    start_date = models.DateField(blank=True, null=True, verbose_name='дата начала наблюдений',)
     last_date = models.DateField(blank=True, null=True, verbose_name='дата последней загрузки',)
     data_type = models.CharField(max_length=50, verbose_name='метеостанция, METAR, метеодатчик',)
     place = models.ForeignKey(Place, on_delete=models.CASCADE, blank=True, null=True, verbose_name='место',)
@@ -81,6 +82,12 @@ class WeatherStation(models.Model):
         db_table = 'weather_stations'
         verbose_name = 'метеостанция'
         verbose_name_plural = 'метеостанции'
+
+    def to_csv(self, delimiter):
+        return f"{self.place.name}{delimiter}{self.rp5_link}{delimiter}{self.data_type}{delimiter}" \
+               f"{'None' if self.start_date is None else self.last_date.strftime('%Y-%m-%d')}" \
+               f"{delimiter}{self.number}{delimiter}{self.country.name}{delimiter}{self.pk}{delimiter}" \
+               f"{self.latitude}{delimiter}{self.longitude}{delimiter}{self.metar}"
 
 
 # Data from the weather station
