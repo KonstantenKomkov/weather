@@ -22,10 +22,10 @@ def read_csv_file(static_root: str, delimiter: str) -> [WeatherStation]:
             temp = line.strip('\n').split(delimiter)
             if len(temp) > 3:
                 stations.append(WeatherStation(
-                    place=temp[0],
-                    link=temp[1],
+                    place=Place(name=temp[0], country=Country(name=temp[5] if temp[5] != 'None' else None),),
+                    rp5_link=temp[1],
                     data_type=int(temp[2]),
-                    start_date=datetime.strptime(temp[3], '%Y-%m-%d').date() + timedelta(days=1)
+                    last_date=datetime.strptime(temp[3], '%Y-%m-%d').date() + timedelta(days=1)
                     if temp[3] != 'None' else None,
                     number=temp[4] if temp[4] != 'None' else None,
                     country=Country(name=temp[5] if temp[5] != 'None' else None),
@@ -35,9 +35,11 @@ def read_csv_file(static_root: str, delimiter: str) -> [WeatherStation]:
                     metar=int(temp[9]),))
             else:
                 stations.append(WeatherStation(
-                    place=temp[0],
-                    link=temp[1],
-                    data_type=int(temp[2])))
+                    place=Place(name=temp[0], country=Country()),
+                    rp5_link=temp[1],
+                    data_type=int(temp[2]),
+                    country=Country(),
+                ))
     return stations
 
 
@@ -48,7 +50,7 @@ def update_csv_file(static_root: str, delimiter: str, station: WeatherStation, i
     with open(f"{static_root}cities.txt", "r+", encoding="utf-8") as csv_file:
         lines_list = csv_file.readlines()
         line_list = lines_list[index].split(delimiter)
-        if line_list[1] == station.link:
+        if line_list[1] == station.rp5_link:
             if len(line_list) == 3:
                 lines_list[index] = f"{station.to_csv(delimiter)}\n"
                 csv_file.seek(0)
