@@ -44,13 +44,14 @@ def get_all_data() -> None:
 
         station: WeatherStation
         for index, station in enumerate(wanted_stations):
+            print(f"{station.place.name=}")
             if index > 0:
                 current_session = recreate_session(current_session)
 
-            if station.start_date is None or station.number is None:
+            if station.last_date is None or station.number is None:
                 is_error, station = rp5_parser.get_missing_ws_info(current_session, station, app.yandex)
-                print(f"Start getting data for {station.place} with "
-                      f"start date of observations {station.start_date}...")
+                print(f"Start getting data for {station.place.name} with "
+                      f"start date of observations {station.last_date}...")
 
                 # Link return code 404 or another error
                 if is_error:
@@ -72,52 +73,49 @@ def get_all_data() -> None:
                     if not unique:
                         print("Not unique link - data not loaded")
                         continue
-                    if station.start_date == now.date():
+                    if station.last_date == now.date():
                         print("Start date of observations for that station is today, we should get all weather date "
                               "tomorrow")
                         continue
-            elif station.start_date - timedelta(days=1) == yesterday:
+            elif station.last_date - timedelta(days=1) == yesterday:
                 print("Data is actual")
                 continue
             else:
-                print(f"Start getting data for {station.place} with last "
-                      f"date of loading {(station.start_date - timedelta(days=1)).strftime('%Y.%m.%d')} ...")
+                print(f"Start getting data for {station.place.name} with last "
+                      f"date of loading {(station.last_date - timedelta(days=1)).strftime('%Y.%m.%d')} ...")
 
             create_directory(station)
-            start_year: int = station.start_date.year
+            start_year: int = station.last_date.year
             if SAVE_IN_DB:
-                country_id: int | None = None
-                place_id: int | None = None
+                current_country: Country | None = None
+                current_place: Place | None = None
 
                 if countries:
                     for country in countries:
-                        print(type(station))
                         if country.name == station.country.name:
-                            country_id = country.pk
+                            current_country = country
                             break
 
-                if country_id is None:
-                    new_country: Country = Country(name=station.country.name)
-                    new_country.save()
-                    countries.append(new_country)
-                    country_id = new_country.pk
+                if current_country is None:
+                    current_country = Country(name=station.country.name)
+                    current_country.save()
+                    countries.append(current_country)
 
                 if places:
                     for place in places:
-                        if place.name == station.place.name and place.country == country_id:
-                            place_id = place.pk
+                        if place.name == station.place.name and place.country == current_country:
+                            current_place = place
                             break
 
-                if place_id is None:
-                    new_place: Place = Place(name=station.place.name, country=country_id)
-                    new_place.save()
-                    places.append(new_place)
-                    place_id = new_place.pk
+                if current_place is None:
+                    current_place = Place(name=station.place.name, country=current_country)
+                    current_place.save()
+                    places.append(current_place)
 
                 if weather_stations:
                     for weather_station in weather_stations:
-                        if weather_station.country == country_id and \
-                                weather_station.place == place_id and \
+                        if weather_station.country == current_country and \
+                                weather_station.place == current_place and \
                                 weather_station.number == station.number and \
                                 weather_station.rp5_link == station.rp5_link and \
                                 weather_station.data_type == station.data_type:
@@ -128,59 +126,36 @@ def get_all_data() -> None:
                                 weather_station.save()
                             break
                 if station.pk is None:
-                    # TODO: писать сразу station to db?
                     new_weather_station: WeatherStation = WeatherStation(
                         number=station.number,
                         latitude=station.latitude,
                         longitude=station.longitude,
                         rp5_link=station.rp5_link,
-                        last_date=station.last_date,
+                        start_date=station.last_date,
                         data_type=station.data_type,
-                        place=place_id,
-                        country=country_id,
-                        metar=station.metar
+                        place=current_place,
+                        country=current_country,
+                        metar=station.metar,
                     )
                     new_weather_station.save()
                     wanted_stations.append(new_weather_station)
                     station = new_weather_station
-            break
-                # # Скользящая ошибка
-                # count = 5
-                # while count > 0:
-                #     count -= 1
-                #     try:
-                #         x = queries.get_country_id(station.country)
-                #         print(x)
-                #         temp = db.executesql(x)
-                #         db.commit()
-                #         break
-                #     except Exception as e:
-                #         print('Ошибка:\n', traceback.format_exc())
-                #         print(f'Error in country query: {e}')
-                # else:
-                #     print(f"Can't get country id from db after {count} attempts")
-                #     raise
-                # country_id = temp[0][0]
-                # # end of error
 
-                # place_id = db.executesql(queries.get_city_id(station.place, country_id))[0][0]
-                # db.commit()
-                # station.ws_id = db.executesql(queries.get_ws_id(station, place_id, country_id))[0][0]
-                # db.commit()
             flag = False
             while start_year < now.year + 1:
-                if start_year == station.start_date.year:
-                    start_date: date = station.start_date
+                if start_year == station.last_date.year:
+                    start_date: date = station.last_date
                 else:
                     start_date: date = date(start_year, 1, 1)
                 flag = get_weather_for_year(start_date, station.number, station.pk, station.rp5_link[0:14],
                                             station.data_type,
                                             station.metar)
                 start_year += 1
-            station.start_date = yesterday
+            station.last_date = yesterday
             if flag:
                 if SAVE_IN_DB:
                     load_data_from_csv(station.number, station.data_type)
+                    station.save()
                 weather_csv.update_csv_file(_STATIC_ROOT, DELIMITER, station, index)
                 # Use timeout between sessions for concealment
                 sleep(randint(WEATHER_PARSER['MIN_DELAY_BETWEEN_REQUESTS'],
