@@ -56,6 +56,8 @@ class Region(models.Model):
 
 class Place(models.Model):
     name = models.CharField(max_length=70, verbose_name='место',)
+    latitude = models.FloatField(verbose_name='широта',)
+    longitude = models.FloatField(verbose_name='долгота',)
     region = models.ForeignKey(Region, on_delete=models.CASCADE, verbose_name='регион', null=True,)
     country = models.ForeignKey(Country, on_delete=models.CASCADE, verbose_name='страна',)
 
@@ -66,16 +68,22 @@ class Place(models.Model):
         unique_together = ('country', 'region', 'name',)
 
 
+class WeatherStationType(models.Model):
+    type = models.CharField(max_length=50, verbose_name='метеостанция, METAR, метеодатчик',)
+
+    class Meta:
+        db_table = 'weather_station_type'
+        verbose_name = 'тип метеостанции'
+        verbose_name_plural = 'типы метеостанций'
+
+
 class WeatherStation(models.Model):
     number = models.CharField(unique=True, max_length=10, verbose_name='идентификатор',)
-    latitude = models.FloatField(verbose_name='широта метеорологической станции',)
-    longitude = models.FloatField(verbose_name='долгота метеорологической станции',)
     rp5_link = models.CharField(max_length=255, verbose_name='ссылка на метеостанцию, rp5',)
     start_date = models.DateField(blank=True, null=True, verbose_name='дата начала наблюдений',)
     last_date = models.DateField(blank=True, null=True, verbose_name='дата последней загрузки',)
-    data_type = models.CharField(max_length=50, verbose_name='метеостанция, METAR, метеодатчик',)
+    type = models.ForeignKey(WeatherStationType, on_delete=models.CASCADE, blank=True, null=True, verbose_name='тип',)
     place = models.ForeignKey(Place, on_delete=models.CASCADE, blank=True, null=True, verbose_name='место',)
-    country = models.ForeignKey(Country, on_delete=models.CASCADE, verbose_name='страна',)
     metar = models.IntegerField(null=True, verbose_name='metar параметр для запроса',)
 
     class Meta:
@@ -83,11 +91,11 @@ class WeatherStation(models.Model):
         verbose_name = 'метеостанция'
         verbose_name_plural = 'метеостанции'
 
-    def to_csv(self, delimiter):
-        return f"{self.place.name}{delimiter}{self.rp5_link}{delimiter}{self.data_type}{delimiter}" \
-               f"{'None' if self.start_date is None else self.last_date.strftime('%Y-%m-%d')}" \
-               f"{delimiter}{self.number}{delimiter}{self.country.name}{delimiter}{self.pk}{delimiter}" \
-               f"{self.latitude}{delimiter}{self.longitude}{delimiter}{self.metar}"
+    # def to_csv(self, delimiter):
+    #     return f"{self.place.name}{delimiter}{self.rp5_link}{delimiter}{self.data_type}{delimiter}" \
+    #            f"{'None' if self.start_date is None else self.last_date.strftime('%Y-%m-%d')}" \
+    #            f"{delimiter}{self.number}{delimiter}{self.country.name}{delimiter}{self.pk}{delimiter}" \
+    #            f"{self.latitude}{delimiter}{self.longitude}{delimiter}{self.metar}"
 
 
 # Data from the weather station
