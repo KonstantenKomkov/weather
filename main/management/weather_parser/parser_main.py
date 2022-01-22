@@ -44,6 +44,7 @@ def get_all_data() -> None:
 
         station: WeatherStation
         for index, station in enumerate(wanted_stations):
+            print(f"{station.place=}")
             print(f"{station.place.name=}")
             if index > 0:
                 current_session = recreate_session(current_session)
@@ -105,6 +106,7 @@ def get_all_data() -> None:
                     for place in places:
                         if place.name == station.place.name and place.country == current_country:
                             current_place = place
+                            print(f"{current_place=}")
                             break
 
                 if current_place is None:
@@ -113,12 +115,19 @@ def get_all_data() -> None:
                     places.append(current_place)
 
                 if weather_stations:
+                    print("weather_stations list is not None")
+                    print(f"{station.data_type=}")
                     for weather_station in weather_stations:
-                        if weather_station.country == current_country and \
-                                weather_station.place == current_place and \
+                        # if weather_station.country.name == current_country.name and \
+                        #         weather_station.place.name == current_place.name and \
+                        #         weather_station.number == station.number and \
+                        #         weather_station.rp5_link == station.rp5_link and \
+                        #         weather_station.data_type == station.data_type:
+                        if weather_station.place.name == current_place.name and \
                                 weather_station.number == station.number and \
-                                weather_station.rp5_link == station.rp5_link and \
-                                weather_station.data_type == station.data_type:
+                                weather_station.rp5_link == station.rp5_link:
+                            print(f"{weather_station.data_type=}")
+                            print("Find WS object")
                             station = weather_station
                             # TODO: Remove it after updating data
                             if station.metar is not None:
@@ -155,6 +164,8 @@ def get_all_data() -> None:
             if flag:
                 if SAVE_IN_DB:
                     load_data_from_csv(station.number, station.data_type)
+                    # TODO: Here Place is None - check it
+                    print(f"{station.place.__str__()}")
                     station.save()
                 weather_csv.update_csv_file(_STATIC_ROOT, DELIMITER, station, index)
                 # Use timeout between sessions for concealment
@@ -184,12 +195,18 @@ def get_weather_for_year(start_date: date, number: str, ws_id: int, url: str, da
             last_date: date = yesterday
 
         # Cookies might be empty, then get PHPSESSID
-        if not current_session.cookies.items():
-            current_session.get(url)
+        try:
+            print(f"{url=}")
+            if not current_session.cookies.items():
+                current_session.get(url)
+        except Exception as e:
+            print(f"Error in get: {e}")
+
 
         answer: Response = rp5_parser.get_text_with_link_on_weather_data_file(
             current_session, number, start_date, last_date, url, data_type, metar)
         count = 5
+        print(f"{answer.text=}")
         # while (answer.text == "Error #FS000;" or answer.text == "Error #FM004;" or answer.text == "") and count > 0:
         while answer.text.find('http') == -1 and count > 0:
             sleep(WEATHER_PARSER['MAX_DELAY_BETWEEN_REQUESTS'])
