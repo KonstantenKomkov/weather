@@ -69,7 +69,7 @@ class Place(models.Model):
 
 
 class WeatherStationType(models.Model):
-    type = models.CharField(max_length=50, verbose_name='метеостанция, METAR, метеодатчик',)
+    type = models.CharField(unique=True, max_length=50, verbose_name='метеостанция, METAR, метеодатчик',)
 
     class Meta:
         db_table = 'weather_station_type'
@@ -91,11 +91,12 @@ class WeatherStation(models.Model):
         verbose_name = 'метеостанция'
         verbose_name_plural = 'метеостанции'
 
-    # def to_csv(self, delimiter):
-    #     return f"{self.place.name}{delimiter}{self.rp5_link}{delimiter}{self.data_type}{delimiter}" \
-    #            f"{'None' if self.start_date is None else self.last_date.strftime('%Y-%m-%d')}" \
-    #            f"{delimiter}{self.number}{delimiter}{self.country.name}{delimiter}{self.pk}{delimiter}" \
-    #            f"{self.latitude}{delimiter}{self.longitude}{delimiter}{self.metar}"
+    def to_csv(self, delimiter):
+        return f"{self.place.name}{delimiter}{self.rp5_link}{delimiter}{self.type}{delimiter}" \
+               f"{'None' if self.last_date is None else self.last_date.strftime('%Y-%m-%d')}" \
+               f"{delimiter}{self.number}{delimiter}{self.place.country.name}{delimiter}{self.pk}{delimiter}" \
+               f"{self.place.latitude}{delimiter}{self.place.longitude}{delimiter}{self.metar}{delimiter}" \
+               f"{'None' if self.start_date is None else self.start_date.strftime('%Y-%m-%d')}"
 
 
 # Data from the weather station
