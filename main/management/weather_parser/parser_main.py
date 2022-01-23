@@ -13,7 +13,7 @@ import main.management.weather_parser.processing as processing
 import main.management.weather_parser.weather_csv as weather_csv
 import main.management.weather_parser.queries as queries
 from weather.settings import app, WEATHER_PARSER, STATIC_ROOT
-from main.models import Country, Place, WeatherStation
+from main.models import Country, Place, WeatherStation, WeatherStationType
 
 SAVE_IN_DB: bool = False if app.database.name == '' else True
 DELIMITER: str = WEATHER_PARSER['CSV_DELIMITER']
@@ -34,18 +34,18 @@ def get_all_data() -> None:
     countries: list[Country] = []
     places: list[Place] = []
     weather_stations: list[WeatherStation] = []
+    weather_station_types: list[WeatherStationType] = []
 
     indexes_of_duplicates = list()
     if wanted_stations:
         if SAVE_IN_DB:
-            countries = list(Country.objects.all())
             places = list(Place.objects.all())
             weather_stations = list(WeatherStation.objects.all())
+            weather_station_types = list(WeatherStationType.objects.all())
 
         station: WeatherStation
         for index, station in enumerate(wanted_stations):
             print(f"{station.place=}")
-            print(f"{station.place.name=}")
             if index > 0:
                 current_session = recreate_session(current_session)
 
@@ -66,8 +66,8 @@ def get_all_data() -> None:
 
                     if index != 0:
                         for ws in wanted_stations[:index - 1]:
-                            if station.number == ws.number and station.latitude == ws.latitude and \
-                                    station.longitude == ws.longitude:
+                            if station.number == ws.number and station.place.latitude == ws.place.latitude and \
+                                    station.place.longitude == ws.place.longitude:
                                 indexes_of_duplicates.append(index)
                                 unique = False
                                 break
@@ -90,21 +90,35 @@ def get_all_data() -> None:
             if SAVE_IN_DB:
                 current_country: Country | None = None
                 current_place: Place | None = None
+                current_type: WeatherStationType | None = None
 
                 if countries:
                     for country in countries:
-                        if country.name == station.country.name:
+                        if country.name == station.place.country.name:
                             current_country = country
                             break
 
                 if current_country is None:
-                    current_country = Country(name=station.country.name)
+                    current_country = Country(name=station.place.country.name)
                     current_country.save()
                     countries.append(current_country)
 
+                print(f"{weather_station_types=}")
+                if weather_station_types:
+                    for weather_station_type in weather_station_types:
+                        if weather_station_type.type == station.type.type:
+                            current_type = weather_station_type
+                            print(f"Find type")
+                            break
+
+                if current_type is None:
+                    current_type = WeatherStationType(type=station.type.type)
+                    current_type.save()
+                    weather_station_types.append(current_type)
+
                 if places:
                     for place in places:
-                        if place.name == station.place.name and place.country == current_country:
+                        if place.name == station.place.name and place.country.name == station.place.country.name:
                             current_place = place
                             print(f"{current_place=}")
                             break
@@ -116,34 +130,40 @@ def get_all_data() -> None:
 
                 if weather_stations:
                     print("weather_stations list is not None")
-                    print(f"{station.data_type=}")
+                    print(f"{station.type=}")
                     for weather_station in weather_stations:
-                        # if weather_station.country.name == current_country.name and \
-                        #         weather_station.place.name == current_place.name and \
-                        #         weather_station.number == station.number and \
-                        #         weather_station.rp5_link == station.rp5_link and \
-                        #         weather_station.data_type == station.data_type:
                         if weather_station.place.name == current_place.name and \
+                                weather_station.place.country.name == current_place.country.name and \
                                 weather_station.number == station.number and \
                                 weather_station.rp5_link == station.rp5_link:
-                            print(f"{weather_station.data_type=}")
+                            print(f"{weather_station.type=}")
                             print("Find WS object")
+                            # print(f"Last date is {station.last_date}")
+                            # TODO: Remove it after updating data <<<<<
+                            temp_date = station.last_date
+                            temp_type = current_type
+                            # TODO: >>>>>
                             station = weather_station
                             # TODO: Remove it after updating data
+                            station.last_date = temp_date
+                            station.type = temp_type
                             if station.metar is not None:
                                 weather_station.metar = station.metar
+                                weather_station.last_date = temp_date
+                                # weather_station.last_date = station.last_date
+                                # if station.type.pk is None:
+                                #     if weather_station.type.type = "метеостанция":
+                                #     elif station.type == 1:
+                                #         weather_station.type = WeatherStationType(type="METAR")
                                 weather_station.save()
                             break
                 if station.pk is None:
                     new_weather_station: WeatherStation = WeatherStation(
                         number=station.number,
-                        latitude=station.latitude,
-                        longitude=station.longitude,
                         rp5_link=station.rp5_link,
                         start_date=station.last_date,
-                        data_type=station.data_type,
+                        type=station.type,
                         place=current_place,
-                        country=current_country,
                         metar=station.metar,
                     )
                     new_weather_station.save()
@@ -152,20 +172,25 @@ def get_all_data() -> None:
 
             flag = False
             while start_year < now.year + 1:
+                print(f"{station.last_date=}")
                 if start_year == station.last_date.year:
                     start_date: date = station.last_date
                 else:
                     start_date: date = date(start_year, 1, 1)
                 flag = get_weather_for_year(start_date, station.number, station.pk, station.rp5_link[0:14],
-                                            station.data_type,
+                                            station.type,
                                             station.metar)
                 start_year += 1
             station.last_date = yesterday
             if flag:
                 if SAVE_IN_DB:
-                    load_data_from_csv(station.number, station.data_type)
-                    # TODO: Here Place is None - check it
-                    print(f"{station.place.__str__()}")
+                    try:
+                        load_data_from_csv(station.number, station.type)
+                    except Exception as e:
+                        print("Can't save csv data")
+                        raise
+                    print(f"{station.place.pk}")
+                    print(f"{station.type.pk}")
                     station.save()
                 weather_csv.update_csv_file(_STATIC_ROOT, DELIMITER, station, index)
                 # Use timeout between sessions for concealment
@@ -181,7 +206,7 @@ def get_all_data() -> None:
             print(station)
 
 
-def get_weather_for_year(start_date: date, number: str, ws_id: int, url: str, data_type: int, metar: int) -> bool:
+def get_weather_for_year(start_date: date, number: str, ws_id: int, url: str, data_type: WeatherStationType, metar: int) -> bool:
     """ Function get archive file from site rp5.ru with weather data for one year
         and save it at directory."""
 
@@ -202,9 +227,8 @@ def get_weather_for_year(start_date: date, number: str, ws_id: int, url: str, da
         except Exception as e:
             print(f"Error in get: {e}")
 
-
-        answer: Response = rp5_parser.get_text_with_link_on_weather_data_file(
-            current_session, number, start_date, last_date, url, data_type, metar)
+        answer: Response = rp5_parser.get_text_with_link_on_weather_data_file(current_session, number, start_date,
+                                                                              last_date, url, data_type, metar)
         count = 5
         print(f"{answer.text=}")
         # while (answer.text == "Error #FS000;" or answer.text == "Error #FM004;" or answer.text == "") and count > 0:
@@ -234,11 +258,11 @@ def get_weather_for_year(start_date: date, number: str, ws_id: int, url: str, da
             csv_weather_data: str = decompress.decode('utf-8')
 
             if SAVE_IN_DB:
-                if data_type == 0:
+                if data_type.type == "метеостанция":
                     parsed_data: AnyStr = processing.weather_stations_data_processing(
                         DELIMITER, csv_weather_data.splitlines(), ws_id)
                     file.write(parsed_data)
-                elif data_type == 1:
+                elif data_type.type == "METAR":
                     parsed_data: AnyStr = \
                         processing.metar_data_processing(DELIMITER, csv_weather_data.splitlines(), ws_id)
                     file.write(parsed_data)
@@ -249,19 +273,19 @@ def get_weather_for_year(start_date: date, number: str, ws_id: int, url: str, da
         raise ValueError(f"Query to future {start_date.strftime('%Y.%m.%d')}!")
 
 
-def load_data_from_csv(folder: str, data_type: int) -> None:
+def load_data_from_csv(folder: str, data_type: WeatherStationType) -> None:
     global _STATIC_ROOT
 
     if path.isdir(f"{_STATIC_ROOT}{folder}"):
         for weather_file in listdir(f"{_STATIC_ROOT}{folder}"):
             if path.isfile(f"{_STATIC_ROOT}{folder}\\{weather_file}") and weather_file[-4:] == '.csv':
                 try:
-                    if data_type == 0:
+                    if data_type.type == "метеостанция":
                         # TODO: Отказаться от использования pyDAL использовать встроенное в Django
                         db.executesql(queries.insert_csv_weather_station_data(
                             f"{_STATIC_ROOT}{folder}\\{weather_file}",
                             DELIMITER))
-                    elif data_type == 1:
+                    elif data_type.type == "METAR":
                         # TODO: Отказаться от использования pyDAL использовать встроенное в Django
                         db.executesql(queries.insert_csv_metar_data(
                             f"{_STATIC_ROOT}{folder}\\{weather_file}",

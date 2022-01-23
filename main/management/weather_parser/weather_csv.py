@@ -1,5 +1,5 @@
 from datetime import datetime, timedelta
-from main.models import Country, Place, WeatherStation
+from main.models import Country, Place, WeatherStation, WeatherStationType
 
 
 def read_csv_file(static_root: str, delimiter: str) -> [WeatherStation]:
@@ -22,23 +22,27 @@ def read_csv_file(static_root: str, delimiter: str) -> [WeatherStation]:
             temp = line.strip('\n').split(delimiter)
             if len(temp) > 3:
                 stations.append(WeatherStation(
-                    place=Place(name=temp[0], country=Country(name=temp[5] if temp[5] != 'None' else None),),
+                    place=Place(
+                        name=temp[0],
+                        country=Country(name=temp[5] if temp[5] != 'None' else None),
+                        latitude=float(temp[7]) if temp[7] != 'None' else None,
+                        longitude=float(temp[8]) if temp[8] != 'None' else None,),
                     rp5_link=temp[1],
-                    data_type=int(temp[2]),
+                    type=WeatherStationType(type="метеостанция")
+                    if int(temp[2]) == 0 else WeatherStationType(type="METAR"),
                     last_date=datetime.strptime(temp[3], '%Y-%m-%d').date() + timedelta(days=1)
                     if temp[3] != 'None' else None,
                     number=temp[4] if temp[4] != 'None' else None,
-                    country=Country(name=temp[5] if temp[5] != 'None' else None),
                     pk=int(temp[6]) if temp[6] != 'None' else None,
-                    latitude=float(temp[7]) if temp[7] != 'None' else None,
-                    longitude=float(temp[8]) if temp[8] != 'None' else None,
-                    metar=int(temp[9]),))
+                    metar=int(temp[9]),
+                    # start_date=datetime.strptime(temp[10], '%Y-%m-%d').date(),
+                ))
             else:
                 stations.append(WeatherStation(
                     place=Place(name=temp[0], country=Country()),
                     rp5_link=temp[1],
-                    data_type=int(temp[2]),
-                    country=Country(),
+                    type=WeatherStationType(type="метеостанция")
+                    if int(temp[2]) == 0 else WeatherStationType(type="METAR"),
                 ))
     return stations
 
@@ -64,7 +68,6 @@ def update_csv_file(static_root: str, delimiter: str, station: WeatherStation, i
 
 
 def delete_duplicates_weather_stations(indexes_of_duplicates: list, len_ws_list: int, static_root):
-
     with open(f"{static_root}cities.txt", "r", encoding="utf-8") as csv_file:
         lines_list = csv_file.readlines()
 

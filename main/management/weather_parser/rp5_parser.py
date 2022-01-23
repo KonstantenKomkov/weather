@@ -13,7 +13,7 @@ import main.management.weather_parser.rp5_ru_headers as rp5_ru_headers
 import main.management.weather_parser.rp5_md_headers as rp5_md_headers
 import main.management.weather_parser.yandex_headers as ya
 # import main.management.weather_parser.classes as classes
-from main.models import Country, Place, WeatherStation
+from main.models import Country, Place, WeatherStation, WeatherStationType
 from weather.app_models import Yandex
 from weather.settings import WEATHER_PARSER
 
@@ -127,12 +127,12 @@ def get_missing_ws_info(
                 get_coordinates(str(soup.find("div", class_="pointNaviCont noprint").find("a")))
 
             station.country = find_country_by_coordinates(yandex, station.latitude, station.longitude)
-            station.metar = 0 if station.data_type == 0 else find_metar(soup)
+            station.metar = 0 if station.type.type == "" else find_metar(soup)
     return is_error, station
 
 
 def get_text_with_link_on_weather_data_file(current_session: Session, number: str, start_date: date, last_date: date,
-                                            url: str, data_type: int, metar: int = None):
+                                            url: str, data_type: WeatherStationType, metar: int = None) -> Response | None:
     """ Function create query for site rp5.ru with special params for
         getting JS text with link on csv.gz file and returns response of query.
         I use sessionw and headers because site return text - 'Error #FS000;'
@@ -151,17 +151,17 @@ def get_text_with_link_on_weather_data_file(current_session: Session, number: st
     elif phpsessid is not None:
         current_session.headers = rp5_ru_headers.get_header(phpsessid, choice(browsers))
     else:
-        print("phpsessid is None")
-        raise
+        print("Error: phpsessid is None!")
+        return None
     try:
-        if data_type == 0:
+        if data_type.type == "метеостанция":
             result: Response = current_session.post(
                 f"{url}/responses/reFileSynop.php",
                 data={'wmo_id': number, 'a_date1': start_date.strftime('%d.%m.%Y'),
                       'a_date2': last_date.strftime('%d.%m.%Y'), 'f_ed3': 5, 'f_ed4': 5, 'f_ed5': 17, 'f_pe': 1,
                       'f_pe1': 2, 'lng_id': 2, })
             return result
-        elif data_type == 1:
+        elif data_type.type == "METAR":
             result: Response = current_session.post(
                 f"{url}/responses/reFileMetar.php",
                 data={'metar': metar, 'a_date1': start_date.strftime('%d.%m.%Y'),
@@ -169,12 +169,14 @@ def get_text_with_link_on_weather_data_file(current_session: Session, number: st
                       'f_pe1': 2, 'lng_id': 2, })
             return result
         else:
-            print(f"Ettor of data_type = {data_type}")
-            raise
+            print(f"Ettor of data_type = {data_type.type}")
+            return None
     except HTTPError as http_err:
         print(f'HTTP error occurred: {http_err}')
+        return None
     except Exception as err:
         print(f'Other error occurred: {err}')
+        return None
 
 
 def get_link_archive_file(text: str) -> str:
