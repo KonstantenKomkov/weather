@@ -32,11 +32,11 @@ def get_all_data() -> None:
     links_with_error: list[WeatherStation] = list()
     wanted_stations = weather_csv.read_csv_file(_STATIC_ROOT, DELIMITER)
     countries: list[Country] = []
+    weather_station_types: list[WeatherStationType] = []
     places: list[Place] = []
     weather_stations: list[WeatherStation] = []
-    weather_station_types: list[WeatherStationType] = []
 
-    indexes_of_duplicates = list()
+    indexes_of_duplicates = []
     if wanted_stations:
         if SAVE_IN_DB:
             places = list(Place.objects.all())
@@ -88,87 +88,18 @@ def get_all_data() -> None:
             create_directory(station)
             start_year: int = station.last_date.year
             if SAVE_IN_DB:
-                current_country: Country | None = None
-                current_place: Place | None = None
-                current_type: WeatherStationType | None = None
+                current_country: Country
+                current_type: WeatherStationType
+                current_place: Place
 
-                if countries:
-                    for country in countries:
-                        if country.name == station.place.country.name:
-                            current_country = country
-                            break
+                countries, current_country = find_or_write_country(countries, station)
 
-                if current_country is None:
-                    current_country = Country(name=station.place.country.name)
-                    current_country.save()
-                    countries.append(current_country)
+                weather_station_types, current_type = find_or_write_weather_station_type(weather_station_types, station)
 
-                print(f"{weather_station_types=}")
-                if weather_station_types:
-                    for weather_station_type in weather_station_types:
-                        if weather_station_type.type == station.type.type:
-                            current_type = weather_station_type
-                            print(f"Find type")
-                            break
+                places, current_place = find_or_write_place(places, station, current_country)
 
-                if current_type is None:
-                    current_type = WeatherStationType(type=station.type.type)
-                    current_type.save()
-                    weather_station_types.append(current_type)
-
-                if places:
-                    for place in places:
-                        if place.name == station.place.name and place.country.name == station.place.country.name:
-                            current_place = place
-                            print(f"{current_place=}")
-                            break
-
-                if current_place is None:
-                    current_place = Place(name=station.place.name, country=current_country)
-                    current_place.save()
-                    places.append(current_place)
-
-                if weather_stations:
-                    print("weather_stations list is not None")
-                    print(f"{station.type=}")
-                    for weather_station in weather_stations:
-                        if weather_station.place.name == current_place.name and \
-                                weather_station.place.country.name == current_place.country.name and \
-                                weather_station.number == station.number and \
-                                weather_station.rp5_link == station.rp5_link:
-                            print(f"{weather_station.type=}")
-                            print("Find WS object")
-                            # print(f"Last date is {station.last_date}")
-                            # TODO: Remove it after updating data <<<<<
-                            temp_date = station.last_date
-                            temp_type = current_type
-                            # TODO: >>>>>
-                            station = weather_station
-                            # TODO: Remove it after updating data
-                            station.last_date = temp_date
-                            station.type = temp_type
-                            if station.metar is not None:
-                                weather_station.metar = station.metar
-                                weather_station.last_date = temp_date
-                                # weather_station.last_date = station.last_date
-                                # if station.type.pk is None:
-                                #     if weather_station.type.type = "метеостанция":
-                                #     elif station.type == 1:
-                                #         weather_station.type = WeatherStationType(type="METAR")
-                                weather_station.save()
-                            break
-                if station.pk is None:
-                    new_weather_station: WeatherStation = WeatherStation(
-                        number=station.number,
-                        rp5_link=station.rp5_link,
-                        start_date=station.last_date,
-                        type=station.type,
-                        place=current_place,
-                        metar=station.metar,
-                    )
-                    new_weather_station.save()
-                    wanted_stations.append(new_weather_station)
-                    station = new_weather_station
+                weather_stations, station = find_or_write_weather_station(weather_stations,
+                                                                          station, current_place, current_type)
 
             flag = False
             while start_year < now.year + 1:
@@ -184,15 +115,13 @@ def get_all_data() -> None:
             station.last_date = yesterday
             if flag:
                 if SAVE_IN_DB:
-                    try:
-                        load_data_from_csv(station.number, station.type)
-                    except Exception as e:
-                        print("Can't save csv data")
-                        raise
-                    print(f"{station.place.pk}")
-                    print(f"{station.type.pk}")
-                    station.save()
-                weather_csv.update_csv_file(_STATIC_ROOT, DELIMITER, station, index)
+
+                    is_saved = load_data_from_csv(station.number, station.type)
+                    print(f"{is_saved=}")
+                    if is_saved:
+                        station.save()
+                if is_saved:
+                    weather_csv.update_csv_file(_STATIC_ROOT, DELIMITER, station, index)
                 # Use timeout between sessions for concealment
                 sleep(randint(WEATHER_PARSER['MIN_DELAY_BETWEEN_REQUESTS'],
                               WEATHER_PARSER['MAX_DELAY_BETWEEN_REQUESTS']))
@@ -204,6 +133,103 @@ def get_all_data() -> None:
         print("Links which returned code 404 or another errors:")
         for station in links_with_error:
             print(station)
+
+
+def find_or_write_weather_station_type(weather_station_types: list[WeatherStationType], station: WeatherStation,) -> \
+        tuple[list[WeatherStationType], WeatherStationType]:
+    current_type = None
+    if weather_station_types:
+        for weather_station_type in weather_station_types:
+            if weather_station_type.type == station.type.type:
+                current_type = weather_station_type
+                break
+
+    if current_type is None:
+        current_type = WeatherStationType(type=station.type.type)
+        current_type.save()
+        weather_station_types.append(current_type)
+    return weather_station_types, current_type
+
+
+def find_or_write_country(countries: list[Country], station: WeatherStation,) -> tuple[list[Country], Country]:
+    current_country = None
+    if countries:
+        for country in countries:
+            if country.name == station.place.country.name:
+                current_country = country
+                break
+
+    if current_country is None:
+        current_country = Country(name=station.place.country.name)
+        current_country.save()
+        countries.append(current_country)
+    return countries, current_country
+
+
+def find_or_write_place(places: list[Place], station: WeatherStation, current_country: Country) -> \
+        tuple[list[Place], Place]:
+    current_place = None
+    if places:
+        for place in places:
+            if place.name == station.place.name and place.country.name == station.place.country.name and \
+                    place.latitude == station.place.latitude and place.longitude == station.place.longitude:
+                current_place = place
+                print(f"{current_place=}")
+                break
+
+    if current_place is None:
+        current_place = Place(
+            name=station.place.name,
+            country=current_country,
+            latitude=station.place.latitude,
+            longitude=station.place.longitude,)
+        current_place.save()
+        places.append(current_place)
+    return places, current_place
+
+
+def find_or_write_weather_station(
+        weather_stations: list[WeatherStation],
+        station: WeatherStation,
+        current_place: Place,
+        current_type: WeatherStationType,) -> tuple[list[WeatherStation], WeatherStation]:
+    if weather_stations:
+        print("weather_stations list is not None")
+        print(f"{station.type=}")
+        for weather_station in weather_stations:
+            if weather_station.place.name == current_place.name and \
+                    weather_station.place.country.name == current_place.country.name and \
+                    weather_station.number == station.number and \
+                    weather_station.rp5_link == station.rp5_link:
+                print(f"{weather_station.type=}")
+                print("Find WS object")
+                # print(f"Last date is {station.last_date}")
+                # TODO: Remove it after updating data <<<<<
+                temp_date = station.last_date
+                temp_type = current_type
+                # TODO: >>>>>
+                station = weather_station
+                # TODO: Remove it after updating data
+                print(f"My LAST DATE = {temp_date}")
+                station.last_date = temp_date
+                station.type = temp_type
+                weather_station.metar = station.metar
+                weather_station.last_date = temp_date
+                weather_station.save()
+                break
+    if station.pk is None:
+        new_weather_station: WeatherStation = WeatherStation(
+            number=station.number,
+            rp5_link=station.rp5_link,
+            start_date=station.last_date,
+            type=station.type,
+            place=current_place,
+            metar=station.metar,
+        )
+        new_weather_station.save()
+        weather_stations.append(new_weather_station)
+        station = new_weather_station
+    return weather_stations, station
 
 
 def get_weather_for_year(start_date: date, number: str, ws_id: int, url: str, data_type: WeatherStationType, metar: int) -> bool:
@@ -231,6 +257,7 @@ def get_weather_for_year(start_date: date, number: str, ws_id: int, url: str, da
                                                                               last_date, url, data_type, metar)
         count = 5
         print(f"{answer.text=}")
+        #  #FM002-;
         # while (answer.text == "Error #FS000;" or answer.text == "Error #FM004;" or answer.text == "") and count > 0:
         while answer.text.find('http') == -1 and count > 0:
             sleep(WEATHER_PARSER['MAX_DELAY_BETWEEN_REQUESTS'])
@@ -273,9 +300,10 @@ def get_weather_for_year(start_date: date, number: str, ws_id: int, url: str, da
         raise ValueError(f"Query to future {start_date.strftime('%Y.%m.%d')}!")
 
 
-def load_data_from_csv(folder: str, data_type: WeatherStationType) -> None:
+def load_data_from_csv(folder: str, data_type: WeatherStationType) -> bool:
     global _STATIC_ROOT
 
+    result: bool = False
     if path.isdir(f"{_STATIC_ROOT}{folder}"):
         for weather_file in listdir(f"{_STATIC_ROOT}{folder}"):
             if path.isfile(f"{_STATIC_ROOT}{folder}\\{weather_file}") and weather_file[-4:] == '.csv':
@@ -291,18 +319,19 @@ def load_data_from_csv(folder: str, data_type: WeatherStationType) -> None:
                             f"{_STATIC_ROOT}{folder}\\{weather_file}",
                             DELIMITER))
                     db.commit()
+                    result = True
                 except Error as e:
                     # UniqueViolation, was skipped because all directory will be check
                     if e.pgcode != '23505' and e.pgcode != '25P02':
                         # don't remove file for searching error
                         print(f"My error: {e.pgcode}. File in folder {folder}\\{weather_file}.")
-                        raise
                     else:
                         if not WEATHER_PARSER['DELETE_CSV_FILES']:
                             remove(f"{_STATIC_ROOT}{folder}\\{weather_file}")
                 else:
                     if not WEATHER_PARSER['DELETE_CSV_FILES']:
                         remove(f"{_STATIC_ROOT}{folder}\\{weather_file}")
+    return result
 
 
 def create_csv_by_country(url) -> None:
