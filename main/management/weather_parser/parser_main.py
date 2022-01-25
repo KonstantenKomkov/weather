@@ -45,6 +45,8 @@ def get_all_data() -> None:
 
         station: WeatherStation
         for index, station in enumerate(wanted_stations):
+            if index != 123:
+                continue
             print(f"{station.place=}")
             if index > 0:
                 current_session = recreate_session(current_session)
@@ -101,7 +103,8 @@ def get_all_data() -> None:
                 weather_stations, station = find_or_write_weather_station(weather_stations,
                                                                           station, current_place, current_type)
 
-            flag = False
+            flag: bool = False
+            data_was_saved: bool = False
             while start_year < now.year + 1:
                 print(f"{station.last_date=}")
                 if start_year == station.last_date.year:
@@ -116,11 +119,13 @@ def get_all_data() -> None:
             if flag:
                 if SAVE_IN_DB:
 
-                    is_saved = load_data_from_csv(station.number, station.type)
-                    print(f"{is_saved=}")
-                    if is_saved:
+                    data_was_saved = load_data_from_csv(station.number, station.type)
+                    print(f"{data_was_saved=}")
+                    if data_was_saved:
                         station.save()
-                if is_saved:
+                else:
+                    data_was_saved = True
+                if data_was_saved:
                     weather_csv.update_csv_file(_STATIC_ROOT, DELIMITER, station, index)
                 # Use timeout between sessions for concealment
                 sleep(randint(WEATHER_PARSER['MIN_DELAY_BETWEEN_REQUESTS'],
@@ -169,6 +174,8 @@ def find_or_write_country(countries: list[Country], station: WeatherStation,) ->
 def find_or_write_place(places: list[Place], station: WeatherStation, current_country: Country) -> \
         tuple[list[Place], Place]:
     current_place = None
+    print(f"{station.place.latitude=}")
+    print(f"{station.place.longitude=}")
     if places:
         for place in places:
             if place.name == station.place.name and place.country.name == station.place.country.name and \
@@ -213,9 +220,13 @@ def find_or_write_weather_station(
                 print(f"My LAST DATE = {temp_date}")
                 station.last_date = temp_date
                 station.type = temp_type
+                if weather_station.pk == 124:
+                    print(weather_station.place.pk)
                 weather_station.metar = station.metar
                 weather_station.last_date = temp_date
                 weather_station.save()
+                if weather_station.pk == 124:
+                    print(f"After save - {weather_station.place.pk}")
                 break
     if station.pk is None:
         new_weather_station: WeatherStation = WeatherStation(
