@@ -1,6 +1,3 @@
-import main.management.weather_parser.classes as classes
-
-
 def insert_wind_data():
     return "INSERT INTO wind_directions (\"name\") VALUES ('Ветер, дующий с юга'), ('Ветер, дующий с юго-востока'), " \
            "('Ветер, дующий с востока'), ('Штиль, безветрие'), ('Ветер, дующий с юго-юго-востока'), " \
@@ -23,46 +20,6 @@ def insert_cloudiness_cl_data():
            "('20–30', 2), ('40', 3), ('50', 4), ('60', 5), ('70 – 80', 6), ('90  или более, но не 100%', 7), " \
            "('100', 8), ('нет данных', null), " \
            "('Небо не видно из-за тумана и/или других метеорологических явлений.', null)"
-
-
-# def get_country_id(country):
-#     # print(country)
-#     return "WITH s as (SELECT id, \"name\" FROM countries WHERE \"name\" = '%(country)s'), i as (INSERT INTO " \
-#            "countries (\"name\") SELECT '%(country)s' WHERE NOT EXISTS (SELECT 1 FROM s) RETURNING id) SELECT id " \
-#            "FROM i UNION ALL SELECT id FROM s" % {'country': country}
-
-
-# def get_city_id(place, country_id):
-#     return "WITH s as (SELECT id, \"name\", country_id FROM places WHERE \"name\" = '%(place)s' and country_id = " \
-#            "%(country_id)i), i as (INSERT INTO places (\"name\", country_id) SELECT '%(place)s', %(country_id)i " \
-#            "WHERE NOT EXISTS (SELECT 1 FROM s) RETURNING id, \"name\", country_id) SELECT id FROM i UNION ALL " \
-#            "SELECT id FROM s" % {'place': place, 'country_id': country_id}
-
-
-# def get_ws_id(station: classes.WeatherStation, place_id: int, country_id: int) -> str:
-#     data_type: str
-#     if station.data_type == 0:
-#         data_type = 'метеостанция'
-#     elif station.data_type == 1:
-#         data_type = 'METAR'
-#     else:
-#         data_type = 'метеодатчик'
-#     # подумать над station.start_date
-#     # error number 34214
-#     print(f"{station.number=}, {station.link=}, {place_id=}, {country_id=}, {data_type=}, {station.latitude=}, "
-#           f"{station.longitude=}, {station.start_date=}")
-#     return "WITH s as (SELECT id, \"number\", latitude, longitude, rp5_link, last_date, data_type, place_id, " \
-#            "country_id FROM weather_stations WHERE \"number\" = '%(number)s' and rp5_link = '%(link)s' and " \
-#            "place_id = %(place_id)i and country_id = %(country_id)i and data_type = '%(data_type)s'), i as (INSERT " \
-#            "INTO weather_stations (\"number\", latitude, longitude, rp5_link, last_date, data_type, place_id, " \
-#            "country_id) SELECT '%(number)s', %(latitude)f, %(longitude)f, '%(link)s', '%(start_date)s', " \
-#            "'%(data_type)s', %(place_id)i, %(country_id)i WHERE NOT EXISTS (SELECT 1 FROM s) RETURNING id, " \
-#            "\"number\", latitude, longitude, rp5_link, last_date, data_type, place_id, country_id) SELECT id " \
-#            "FROM i UNION ALL SELECT id FROM s" % {
-#                'number': station.number, 'link': station.link, 'place_id': place_id, 'country_id': country_id,
-#                'data_type': data_type, 'latitude': station.latitude, 'longitude': station.longitude,
-#                'start_date': station.start_date
-#            }
 
 
 def insert_csv_weather_station_data(my_path: str, delimiter: str) -> str:
