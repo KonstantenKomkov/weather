@@ -83,7 +83,7 @@ class WeatherStation(models.Model):
     start_date = models.DateField(blank=True, null=True, verbose_name='дата начала наблюдений',)
     last_date = models.DateField(blank=True, null=True, verbose_name='дата последней загрузки',)
     type = models.ForeignKey(WeatherStationType, on_delete=models.CASCADE, blank=True, null=True, verbose_name='тип',)
-    place = models.ForeignKey(Place, on_delete=models.CASCADE, blank=True, null=True, verbose_name='место',)
+    place = models.ForeignKey(Place, on_delete=models.CASCADE, blank=True, null=False, verbose_name='место',)
     metar = models.IntegerField(null=True, verbose_name='metar параметр для запроса',)
 
     class Meta:
