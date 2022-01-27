@@ -34,7 +34,7 @@ def read_csv_file(static_root: str, delimiter: str) -> [WeatherStation]:
                     if temp[3] != 'None' else None,
                     number=temp[4] if temp[4] != 'None' else None,
                     pk=int(temp[6]) if temp[6] != 'None' else None,
-                    metar=int(temp[9]),
+                    metar=None if int(temp[9]) == 0 else int(temp[9]),
                     # start_date=datetime.strptime(temp[10], '%Y-%m-%d').date(),
                 ))
             else:

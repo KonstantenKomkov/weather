@@ -12,8 +12,7 @@ from typing import Tuple
 import main.management.weather_parser.rp5_ru_headers as rp5_ru_headers
 import main.management.weather_parser.rp5_md_headers as rp5_md_headers
 import main.management.weather_parser.yandex_headers as ya
-# import main.management.weather_parser.classes as classes
-from main.models import Country, Place, WeatherStation, WeatherStationType
+from main.models import Country, WeatherStation, WeatherStationType
 from weather.app_models import Yandex
 from weather.settings import WEATHER_PARSER
 
@@ -132,7 +131,8 @@ def get_missing_ws_info(
 
 
 def get_text_with_link_on_weather_data_file(current_session: Session, number: str, start_date: date, last_date: date,
-                                            url: str, data_type: WeatherStationType, metar: int = None) -> Response | None:
+                                            url: str, data_type: WeatherStationType, metar: int | None) -> \
+        Response | None:
     """ Function create query for site rp5.ru with special params for
         getting JS text with link on csv.gz file and returns response of query.
         I use sessionw and headers because site return text - 'Error #FS000;'
