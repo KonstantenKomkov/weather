@@ -45,9 +45,9 @@ def get_all_data() -> None:
 
         station: WeatherStation
         for index, station in enumerate(wanted_stations):
-            if index != 123:
+            # TODO: remove it after fix weather data saving
+            if index != 0:
                 continue
-            print(f"{station.place=}")
             if index > 0:
                 current_session = recreate_session(current_session)
 
@@ -100,25 +100,22 @@ def get_all_data() -> None:
 
                 places, current_place = find_or_write_place(places, station, current_country)
 
-                weather_stations, station = find_or_write_weather_station(weather_stations,
-                                                                          station, current_place, current_type)
+                weather_stations, station = find_or_write_weather_station(weather_stations, station, current_place,
+                                                                          current_type)
 
             flag: bool = False
             data_was_saved: bool = False
             while start_year < now.year + 1:
-                print(f"{station.last_date=}")
                 if start_year == station.last_date.year:
                     start_date: date = station.last_date
                 else:
                     start_date: date = date(start_year, 1, 1)
                 flag = get_weather_for_year(start_date, station.number, station.pk, station.rp5_link[0:14],
-                                            station.type,
-                                            station.metar)
+                                            station.type, station.metar)
                 start_year += 1
             station.last_date = yesterday
             if flag:
                 if SAVE_IN_DB:
-
                     data_was_saved = load_data_from_csv(station.number, station.type)
                     print(f"{data_was_saved=}")
                     if data_was_saved:
@@ -174,14 +171,11 @@ def find_or_write_country(countries: list[Country], station: WeatherStation,) ->
 def find_or_write_place(places: list[Place], station: WeatherStation, current_country: Country) -> \
         tuple[list[Place], Place]:
     current_place = None
-    print(f"{station.place.latitude=}")
-    print(f"{station.place.longitude=}")
     if places:
         for place in places:
             if place.name == station.place.name and place.country.name == station.place.country.name and \
                     place.latitude == station.place.latitude and place.longitude == station.place.longitude:
                 current_place = place
-                print(f"{current_place=}")
                 break
 
     if current_place is None:
@@ -201,39 +195,17 @@ def find_or_write_weather_station(
         current_place: Place,
         current_type: WeatherStationType,) -> tuple[list[WeatherStation], WeatherStation]:
     if weather_stations:
-        print("weather_stations list is not None")
-        print(f"{station.type=}")
         for weather_station in weather_stations:
-            if weather_station.place.name == current_place.name and \
-                    weather_station.place.country.name == current_place.country.name and \
-                    weather_station.number == station.number and \
+            if weather_station.number == station.number and \
                     weather_station.rp5_link == station.rp5_link:
-                print(f"{weather_station.type=}")
-                print("Find WS object")
-                # print(f"Last date is {station.last_date}")
-                # TODO: Remove it after updating data <<<<<
-                temp_date = station.last_date
-                temp_type = current_type
-                # TODO: >>>>>
                 station = weather_station
-                # TODO: Remove it after updating data
-                print(f"My LAST DATE = {temp_date}")
-                station.last_date = temp_date
-                station.type = temp_type
-                if weather_station.pk == 124:
-                    print(weather_station.place.pk)
-                weather_station.metar = station.metar
-                weather_station.last_date = temp_date
-                weather_station.save()
-                if weather_station.pk == 124:
-                    print(f"After save - {weather_station.place.pk}")
                 break
     if station.pk is None:
         new_weather_station: WeatherStation = WeatherStation(
             number=station.number,
             rp5_link=station.rp5_link,
             start_date=station.last_date,
-            type=station.type,
+            type=current_type,
             place=current_place,
             metar=station.metar,
         )
@@ -258,10 +230,10 @@ def get_weather_for_year(start_date: date, number: str, ws_id: int, url: str, da
 
         # Cookies might be empty, then get PHPSESSID
         try:
-            print(f"{url=}")
             if not current_session.cookies.items():
                 current_session.get(url)
         except Exception as e:
+            print(f"{url=}")
             print(f"Error in get: {e}")
 
         answer: Response = rp5_parser.get_text_with_link_on_weather_data_file(current_session, number, start_date,
@@ -321,9 +293,11 @@ def load_data_from_csv(folder: str, data_type: WeatherStationType) -> bool:
                 try:
                     if data_type.type == "метеостанция":
                         # TODO: Отказаться от использования pyDAL использовать встроенное в Django
+                        print("Записываем данные")
                         db.executesql(queries.insert_csv_weather_station_data(
                             f"{_STATIC_ROOT}{folder}\\{weather_file}",
                             DELIMITER))
+                        print("Записали?")
                     elif data_type.type == "METAR":
                         # TODO: Отказаться от использования pyDAL использовать встроенное в Django
                         db.executesql(queries.insert_csv_metar_data(
@@ -331,6 +305,7 @@ def load_data_from_csv(folder: str, data_type: WeatherStationType) -> bool:
                             DELIMITER))
                     db.commit()
                     result = True
+                    print(f"{result=}")
                 except Error as e:
                     # UniqueViolation, was skipped because all directory will be check
                     if e.pgcode != '23505' and e.pgcode != '25P02':
