@@ -5,13 +5,18 @@ from weather.settings import app
 db = DAL(f'postgres://{app.database.user}:{app.database.password}@{app.database.host}/'
          f'{app.database.name}', migrate=False)
 
-db.define_table('countries', Field('name', length=50, rname='"name"'))
-db.define_table('cities', Field('country_id', 'reference countries', ondelete='CASCADE'),
-                Field('name', length=50, rname='"name"'))
-db.define_table('weather_stations', Field('country_id', 'reference countries', ondelete='CASCADE'),
-                Field('number', 'integer'), Field('city_id', 'reference cities', ondelete='CASCADE'),
-                Field('latitude', 'double'), Field('longitude', 'double'), Field('rp5_link', length=255),
-                Field('last_date', 'date'), Field('data_type', length=50))
+db.define_table('countries', Field('name', length=50, rname='"name"'),)
+db.define_table('regions', Field('name', length=50, rname='"name"'),
+                Field('country_id', 'reference countries', ondelete='CASCADE'),)
+db.define_table('places', Field('name', length=50, rname='"name"'),
+                Field('country_id', 'reference countries', ondelete='CASCADE'),
+                Field('region_id', 'reference regions', ondelete='CASCADE'), Field('latitude', 'double'),
+                Field('longitude', 'double'),)
+db.define_table('weather_station_type', Field('type', length=50, rname='"type"'),)
+db.define_table('weather_stations', Field('number', length=10,), Field('rp5_link', length=255),
+                Field('last_date', 'date'), Field('place_id', 'referense places', ondelete='CASCADE'),
+                Field('metar', 'integer'), Field('start_date', 'date'),
+                Field('type_id', 'reference weather_station_type', ondelete='CASCADE'),)
 db.define_table('wind_directions', Field('name', length=50))
 db.define_table('cloudiness', Field('description', length=100), Field('scale', 'integer'))
 db.define_table('cloudiness_cl', Field('description', length=100), Field('scale', 'integer'))
