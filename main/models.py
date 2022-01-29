@@ -93,10 +93,11 @@ class WeatherStation(models.Model):
 
     def to_csv(self, delimiter):
         current_type = 0 if self.type.type == "метеостанция" else 1
+        current_metar = 0 if self.metar is None else self.metar
         return f"{self.place.name}{delimiter}{self.rp5_link}{delimiter}{current_type}{delimiter}" \
                f"{'None' if self.last_date is None else self.last_date.strftime('%Y-%m-%d')}" \
                f"{delimiter}{self.number}{delimiter}{self.place.country.name}{delimiter}{self.pk}{delimiter}" \
-               f"{self.place.latitude}{delimiter}{self.place.longitude}{delimiter}{self.metar}{delimiter}" \
+               f"{self.place.latitude}{delimiter}{self.place.longitude}{delimiter}{current_metar}{delimiter}" \
                f"{'None' if self.start_date is None else self.start_date.strftime('%Y-%m-%d')}"
 
 
