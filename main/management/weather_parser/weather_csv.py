@@ -55,15 +55,15 @@ def update_csv_file(static_root: str, delimiter: str, station: WeatherStation, i
         lines_list = csv_file.readlines()
         line_list = lines_list[index].split(delimiter)
         if line_list[1] == station.rp5_link:
-            print(f"{station.start_date=}, {station.last_date=}")
-            print(f"To CSV: {station.to_csv('#')}")
             if len(line_list) == 3:
                 lines_list[index] = f"{station.to_csv(delimiter)}\n"
                 csv_file.seek(0)
                 csv_file.write("".join(lines_list))
             else:
                 line_list[3] = station.last_date.strftime("%Y-%m-%d")
-                line_list[10] = station.start_date.strftime("%Y-%m-%d")
+                if line_list[9].find("\n") > -1:
+                    line_list[9] = line_list[9].replace("\n", "")
+                line_list.append(f"{station.start_date.strftime('%Y-%m-%d')}\n")
                 updated_line = delimiter.join(line_list)
                 lines_list[index] = f"{updated_line}"
                 csv_file.seek(0)
