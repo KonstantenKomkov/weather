@@ -92,7 +92,8 @@ class WeatherStation(models.Model):
         verbose_name_plural = 'метеостанции'
 
     def to_csv(self, delimiter):
-        return f"{self.place.name}{delimiter}{self.rp5_link}{delimiter}{self.type}{delimiter}" \
+        current_type = 0 if self.type.type == "метеостанция" else 1
+        return f"{self.place.name}{delimiter}{self.rp5_link}{delimiter}{current_type}{delimiter}" \
                f"{'None' if self.last_date is None else self.last_date.strftime('%Y-%m-%d')}" \
                f"{delimiter}{self.number}{delimiter}{self.place.country.name}{delimiter}{self.pk}{delimiter}" \
                f"{self.place.latitude}{delimiter}{self.place.longitude}{delimiter}{self.metar}{delimiter}" \
