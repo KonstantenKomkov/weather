@@ -46,8 +46,8 @@ def get_all_data() -> None:
         station: WeatherStation
         for index, station in enumerate(wanted_stations):
             # TODO: remove it after fix weather data saving
-            if index != 5:
-                continue
+            # if index != 0:
+            #     continue
             if index > 0:
                 current_session = recreate_session(current_session)
 
@@ -71,8 +71,9 @@ def get_all_data() -> None:
 
                 weather_stations, station = find_or_write_weather_station(weather_stations, station, current_place,
                                                                           current_type)
+                station.last_date = station.last_date + timedelta(days=1)
 
-            flag: bool = False
+            data_was_loaded: bool = False
             data_was_saved: bool = False
             while start_year < now.year + 1:
                 if start_year == station.last_date.year:
@@ -80,11 +81,12 @@ def get_all_data() -> None:
                 else:
                     start_date: date = date(start_year, 1, 1)
                 print(f"{start_date=}")
-                flag = get_weather_for_year(start_date, station.number, station.pk, station.rp5_link[0:14],
-                                            station.type, station.metar)
+                data_was_loaded = get_weather_for_year(start_date, station.number, station.pk, station.rp5_link[0:14],
+                                                       station.type, station.metar)
                 start_year += 1
             station.last_date = yesterday
-            if flag:
+            print(f"{yesterday=}")
+            if data_was_loaded:
                 if SAVE_IN_DB:
                     data_was_saved = load_data_from_csv(station.number, station.type)
                     print(f"{data_was_saved=}")
@@ -110,6 +112,8 @@ def get_all_data() -> None:
 def prepared_loading_data(station: WeatherStation, links_with_error: list[WeatherStation],
                           indexes_of_duplicates: list[int], wanted_stations: list[WeatherStation], index: int) -> \
         tuple[WeatherStation, list[WeatherStation], list[int], bool]:
+    """Function check current link on error and WeatherStation on unique. If all is ok return true else false.
+    Also returning arrays if with duplicated links or links with errors."""
     if station.last_date is None or station.number is None:
         is_error, station = rp5_parser.get_missing_ws_info(current_session, station, app.yandex)
         print(f"Start getting data for {station.place.name} with "
@@ -226,7 +230,8 @@ def find_or_write_weather_station(
     return weather_stations, station
 
 
-def get_weather_for_year(start_date: date, number: str, ws_id: int, url: str, data_type: WeatherStationType, metar: int) -> bool:
+def get_weather_for_year(start_date: date, number: str, ws_id: int, url: str, data_type: WeatherStationType,
+                         metar: int) -> bool:
     """ Function get archive file from site rp5.ru with weather data for one year
         and save it at directory."""
 
@@ -253,7 +258,7 @@ def get_weather_for_year(start_date: date, number: str, ws_id: int, url: str, da
         print(f"{answer.text=}")
         #  #FM002-;
         # while (answer.text == "Error #FS000;" or answer.text == "Error #FM004;" or answer.text == "") and count > 0:
-        while answer.text.find('http') == -1 and count > 0:
+        while (answer is None or answer.text.find('http') == -1) and count > 0:
             sleep(WEATHER_PARSER['MAX_DELAY_BETWEEN_REQUESTS'])
             answer = rp5_parser.get_text_with_link_on_weather_data_file(
                 current_session, number, start_date, last_date, url, data_type, metar)
@@ -304,11 +309,9 @@ def load_data_from_csv(folder: str, data_type: WeatherStationType) -> bool:
                 try:
                     if data_type.type == "метеостанция":
                         # TODO: Отказаться от использования pyDAL использовать встроенное в Django
-                        print("Записываем данные")
                         db.executesql(queries.insert_csv_weather_station_data(
                             f"{_STATIC_ROOT}{folder}\\{weather_file}",
                             DELIMITER))
-                        print("Записали?")
                     elif data_type.type == "METAR":
                         # TODO: Отказаться от использования pyDAL использовать встроенное в Django
                         db.executesql(queries.insert_csv_metar_data(
@@ -316,7 +319,6 @@ def load_data_from_csv(folder: str, data_type: WeatherStationType) -> bool:
                             DELIMITER))
                     db.commit()
                     result = True
-                    print(f"{result=}")
                 except Error as e:
                     # UniqueViolation, was skipped because all directory will be check
                     print(f"Error is: {e}")
