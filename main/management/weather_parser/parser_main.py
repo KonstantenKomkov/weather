@@ -46,46 +46,15 @@ def get_all_data() -> None:
         station: WeatherStation
         for index, station in enumerate(wanted_stations):
             # TODO: remove it after fix weather data saving
-            if index != 0:
+            if index != 5:
                 continue
             if index > 0:
                 current_session = recreate_session(current_session)
 
-            if station.last_date is None or station.number is None:
-                is_error, station = rp5_parser.get_missing_ws_info(current_session, station, app.yandex)
-                print(f"Start getting data for {station.place.name} with "
-                      f"start date of observations {station.last_date}...")
-
-                # Link return code 404 or another error
-                if is_error:
-                    links_with_error.append(station)
-                    print("Error link - data not loaded")
-                    continue
-                else:
-                    # На метеостанцию может быть несколько разных ссылок, поэтому надо проверять станции на
-                    # уникальность по: number, latitude, longitude
-                    unique = True
-
-                    if index != 0:
-                        for ws in wanted_stations[:index - 1]:
-                            if station.number == ws.number and station.place.latitude == ws.place.latitude and \
-                                    station.place.longitude == ws.place.longitude:
-                                indexes_of_duplicates.append(index)
-                                unique = False
-                                break
-                    if not unique:
-                        print("Not unique link - data not loaded")
-                        continue
-                    if station.last_date == now.date():
-                        print("Start date of observations for that station is today, we should get all weather date "
-                              "tomorrow")
-                        continue
-            elif station.last_date - timedelta(days=1) == yesterday:
-                print("Data is actual")
+            station, links_with_error, indexes_of_duplicates, should_load = prepared_loading_data(
+                station, links_with_error, indexes_of_duplicates, wanted_stations, index)
+            if not should_load:
                 continue
-            else:
-                print(f"Start getting data for {station.place.name} with last "
-                      f"date of loading {(station.last_date - timedelta(days=1)).strftime('%Y.%m.%d')} ...")
 
             create_directory(station)
             start_year: int = station.last_date.year
@@ -110,6 +79,7 @@ def get_all_data() -> None:
                     start_date: date = station.last_date
                 else:
                     start_date: date = date(start_year, 1, 1)
+                print(f"{start_date=}")
                 flag = get_weather_for_year(start_date, station.number, station.pk, station.rp5_link[0:14],
                                             station.type, station.metar)
                 start_year += 1
@@ -135,6 +105,47 @@ def get_all_data() -> None:
         print("Links which returned code 404 or another errors:")
         for station in links_with_error:
             print(station)
+
+
+def prepared_loading_data(station: WeatherStation, links_with_error: list[WeatherStation],
+                          indexes_of_duplicates: list[int], wanted_stations: list[WeatherStation], index: int) -> \
+        tuple[WeatherStation, list[WeatherStation], list[int], bool]:
+    if station.last_date is None or station.number is None:
+        is_error, station = rp5_parser.get_missing_ws_info(current_session, station, app.yandex)
+        print(f"Start getting data for {station.place.name} with "
+              f"start date of observations {station.last_date}...")
+
+        # Link return code 404 or another error
+        if is_error:
+            links_with_error.append(station)
+            print("Error link - data not loaded")
+            return station, links_with_error, indexes_of_duplicates, False
+        else:
+            # На метеостанцию может быть несколько разных ссылок, поэтому надо проверять станции на
+            # уникальность по: number, latitude, longitude
+            unique = True
+
+            if index != 0:
+                for ws in wanted_stations[:index - 1]:
+                    if station.number == ws.number and station.place.latitude == ws.place.latitude and \
+                            station.place.longitude == ws.place.longitude:
+                        indexes_of_duplicates.append(index)
+                        unique = False
+                        break
+            if not unique:
+                print("Not unique link - data not loaded")
+                return station, links_with_error, indexes_of_duplicates, False
+            if station.last_date == now.date():
+                print("Start date of observations for that station is today, we should get all weather date "
+                      "tomorrow")
+                return station, links_with_error, indexes_of_duplicates, False
+    elif station.last_date - timedelta(days=1) == yesterday:
+        print("Data is actual")
+        return station, links_with_error, indexes_of_duplicates, False
+    else:
+        print(f"Start getting data for {station.place.name} with last "
+              f"date of loading {(station.last_date - timedelta(days=1)).strftime('%Y.%m.%d')} ...")
+    return station, links_with_error, indexes_of_duplicates, True
 
 
 def find_or_write_weather_station_type(weather_station_types: list[WeatherStationType], station: WeatherStation,) -> \
@@ -308,6 +319,7 @@ def load_data_from_csv(folder: str, data_type: WeatherStationType) -> bool:
                     print(f"{result=}")
                 except Error as e:
                     # UniqueViolation, was skipped because all directory will be check
+                    print(f"Error is: {e}")
                     if e.pgcode != '23505' and e.pgcode != '25P02':
                         # don't remove file for searching error
                         print(f"My error: {e.pgcode}. File in folder {folder}\\{weather_file}.")
