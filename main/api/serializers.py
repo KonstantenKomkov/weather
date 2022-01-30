@@ -28,6 +28,7 @@ class WeatherStationSerializer(serializers.ModelSerializer):
         model = WeatherStation
         fields = '__all__'
 
+
 class PlaceFullSerializer(serializers.ModelSerializer):
 
     country = CountrySerializer()
@@ -43,4 +44,5 @@ class WeatherStationListRetrieveSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = WeatherStation
-        fields = ('id','place','number','latitude','longitude','rp5_link','last_date','data_type',)
+        # fields = '__all__'
+        fields = ('id', 'place', 'start_date', 'last_date', 'type')

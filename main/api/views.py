@@ -11,7 +11,7 @@ from djoser.views import UserViewSet
 
 
 class WeatherViewSet(viewsets.ReadOnlyModelViewSet):
-    permission_classes = [permissions.IsAuthenticated]
+    # permission_classes = [permissions.IsAuthenticated]
     queryset = Weather.objects.all()
     serializer_class = WeatherSerializer
 
