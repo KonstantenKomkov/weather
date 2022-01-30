@@ -132,7 +132,7 @@ def get_missing_ws_info(
 
 def get_text_with_link_on_weather_data_file(current_session: Session, number: str, start_date: date, last_date: date,
                                             url: str, data_type: WeatherStationType, metar: int | None) -> \
-        Response | None:
+        tuple[Session, str | None]:
     """ Function create query for site rp5.ru with special params for
         getting JS text with link on csv.gz file and returns response of query.
         I use sessionw and headers because site return text - 'Error #FS000;'
@@ -140,54 +140,68 @@ def get_text_with_link_on_weather_data_file(current_session: Session, number: st
     """
     phpsessid = get_phpsessid(current_session.cookies.items())
     # если сессия перестала быть актуальна
-    if phpsessid is None:
-        current_session = Session()
-        current_session.get(url)
-        phpsessid = get_phpsessid(current_session.cookies.items())
-    if url == 'https://rp5.ru' and phpsessid is not None:
-        current_session.headers = rp5_ru_headers.get_header(phpsessid, choice(browsers))
-    elif url == 'https://rp5.md' and phpsessid is not None:
-        current_session.headers = rp5_md_headers.get_header(phpsessid, 'Chrome')
-    elif phpsessid is not None:
-        current_session.headers = rp5_ru_headers.get_header(phpsessid, choice(browsers))
-    else:
-        print("Error: phpsessid is None!")
-        return None
+
     try:
-        if data_type.type == "метеостанция":
-            result: Response = current_session.post(
-                f"{url}/responses/reFileSynop.php",
-                data={'wmo_id': number, 'a_date1': start_date.strftime('%d.%m.%Y'),
-                      'a_date2': last_date.strftime('%d.%m.%Y'), 'f_ed3': 5, 'f_ed4': 5, 'f_ed5': 17, 'f_pe': 1,
-                      'f_pe1': 2, 'lng_id': 2, })
-            return result
-        elif data_type.type == "METAR":
-            result: Response = current_session.post(
-                f"{url}/responses/reFileMetar.php",
-                data={'metar': metar, 'a_date1': start_date.strftime('%d.%m.%Y'),
-                      'a_date2': last_date.strftime('%d.%m.%Y'), 'f_ed3': 7, 'f_ed4': 7, 'f_ed5': 13, 'f_pe': 1,
-                      'f_pe1': 2, 'lng_id': 2, })
-            return result
+        if phpsessid is None:
+            current_session.close()
+            current_session = Session()
+            current_session.get(url)
+            phpsessid = get_phpsessid(current_session.cookies.items())
+
+        if url == 'https://rp5.ru' and phpsessid is not None:
+            current_session.headers = rp5_ru_headers.get_header(phpsessid, choice(browsers))
+        elif url == 'https://rp5.md' and phpsessid is not None:
+            current_session.headers = rp5_md_headers.get_header(phpsessid, 'Chrome')
+        elif phpsessid is not None:
+            current_session.headers = rp5_ru_headers.get_header(phpsessid, choice(browsers))
         else:
-            print(f"Ettor of data_type = {data_type.type}")
-            return None
+            print("Error: phpsessid is None!")
+            return current_session, None
+
+        response = None
+        count = 5
+        delay = WEATHER_PARSER['MAX_DELAY_BETWEEN_REQUESTS']
+        while (response is None or response.text.find('http') == -1) and count > 0:
+            if data_type.type == "метеостанция":
+                response: Response = current_session.post(
+                    f"{url}/responses/reFileSynop.php",
+                    data={'wmo_id': number, 'a_date1': start_date.strftime('%d.%m.%Y'),
+                          'a_date2': last_date.strftime('%d.%m.%Y'), 'f_ed3': 5, 'f_ed4': 5, 'f_ed5': 17, 'f_pe': 1,
+                          'f_pe1': 2, 'lng_id': 2, })
+            elif data_type.type == "METAR":
+                response: Response = current_session.post(
+                    f"{url}/responses/reFileMetar.php",
+                    data={'metar': metar, 'a_date1': start_date.strftime('%d.%m.%Y'),
+                          'a_date2': last_date.strftime('%d.%m.%Y'), 'f_ed3': 7, 'f_ed4': 7, 'f_ed5': 13, 'f_pe': 1,
+                          'f_pe1': 2, 'lng_id': 2, })
+            else:
+                print(f"Error of data_type = {data_type.type}")
+                return current_session, None
+            count -= 1
+            sleep(delay)
+            delay += WEATHER_PARSER['MAX_DELAY_BETWEEN_REQUESTS']
+        download_link: str | None = None
+        if response is not None and response.text.find('http') > -1:
+            download_link = get_link_archive_file(response.text)
+        return current_session, download_link
     except HTTPError as http_err:
         print(f'HTTP error occurred: {http_err}')
-        return None
+        return current_session, None
     except Exception as err:
         print(f'Other error occurred: {err}')
-        return None
+        return current_session, None
 
 
-def get_link_archive_file(text: str) -> str:
+def get_link_archive_file(text: str) -> str | None:
     """ Function extract link on archive file with weather data from text."""
 
+    link = None
     start_position: int = text.find('<a href=http')
     end_position: int = text.find('.csv.gz')
     if start_position > -1 and end_position > -1:
         link: str = text[start_position + 8:end_position + 7]
     else:
-        raise ValueError(f'Ссылка на скачивание архива не найдена! Text: "{text}"')
+        print(f'Ссылка на скачивание архива не найдена! Text: "{text}"')
     return link
 
 
