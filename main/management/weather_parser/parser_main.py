@@ -46,7 +46,8 @@ def get_all_data() -> None:
         station: WeatherStation
         for index, station in enumerate(wanted_stations):
             # TODO: remove it after fix weather data saving
-            # if index != 0:
+            # if index not in (138,):
+            # if index > 126:
             #     continue
             if index > 0:
                 current_session = recreate_session(current_session)
@@ -58,6 +59,7 @@ def get_all_data() -> None:
 
             create_directory(station)
             start_year: int = station.last_date.year
+            print(f"{station.last_date=}")
             if SAVE_IN_DB:
                 current_country: Country
                 current_type: WeatherStationType
@@ -71,21 +73,21 @@ def get_all_data() -> None:
 
                 weather_stations, station = find_or_write_weather_station(weather_stations, station, current_place,
                                                                           current_type)
-                station.last_date = station.last_date + timedelta(days=1)
+
+                if yesterday != station.last_date:
+                    station.last_date = station.last_date + timedelta(days=1)
 
             data_was_loaded: bool = False
-            data_was_saved: bool = False
             while start_year < now.year + 1:
                 if start_year == station.last_date.year:
                     start_date: date = station.last_date
                 else:
                     start_date: date = date(start_year, 1, 1)
                 print(f"{start_date=}")
-                data_was_loaded = get_weather_for_year(start_date, station.number, station.pk, station.rp5_link[0:14],
-                                                       station.type, station.metar)
+                current_session, data_was_loaded = get_weather_for_year(
+                    start_date, station.number, station.pk, station.rp5_link[0:14], station.type, station.metar)
                 start_year += 1
             station.last_date = yesterday
-            print(f"{yesterday=}")
             if data_was_loaded:
                 if SAVE_IN_DB:
                     data_was_saved = load_data_from_csv(station.number, station.type)
@@ -231,7 +233,7 @@ def find_or_write_weather_station(
 
 
 def get_weather_for_year(start_date: date, number: str, ws_id: int, url: str, data_type: WeatherStationType,
-                         metar: int) -> bool:
+                         metar: int) -> tuple[Session, bool]:
     """ Function get archive file from site rp5.ru with weather data for one year
         and save it at directory."""
 
@@ -252,28 +254,11 @@ def get_weather_for_year(start_date: date, number: str, ws_id: int, url: str, da
             print(f"{url=}")
             print(f"Error in get: {e}")
 
-        answer: Response = rp5_parser.get_text_with_link_on_weather_data_file(current_session, number, start_date,
-                                                                              last_date, url, data_type, metar)
-        count = 5
-        print(f"{answer.text=}")
-        #  #FM002-;
-        # while (answer.text == "Error #FS000;" or answer.text == "Error #FM004;" or answer.text == "") and count > 0:
-        while (answer is None or answer.text.find('http') == -1) and count > 0:
-            sleep(WEATHER_PARSER['MAX_DELAY_BETWEEN_REQUESTS'])
-            answer = rp5_parser.get_text_with_link_on_weather_data_file(
-                current_session, number, start_date, last_date, url, data_type, metar)
-            count -= 1
-        else:
-            print(f"{count=}")
-            if answer.text == "Error #FS000;" or answer.text == "Error #FM004;" or answer.text == "":
-                print(f'Ссылка на скачивание архива не найдена! Text: {answer.text}')
-                return False
-            # if answer.text == "Error #FS000;":
-            #     raise ValueError(f'Ссылка на скачивание архива не найдена! Text: {answer.text}')
-            # raise ValueError(f'Ссылка на скачивание архива не найдена! Text: {answer.text}')
+        current_session, download_link = rp5_parser.get_text_with_link_on_weather_data_file(
+            current_session, number, start_date, last_date, url, data_type, metar)
 
-        download_link: str = rp5_parser.get_link_archive_file(answer.text)
-
+        if download_link is None:
+            return current_session, False
         with open(f'{_STATIC_ROOT}{number}/{start_date.year}.csv', "wb") as file:
             response: Response = current_session.get(download_link)
             while response.status_code != 200:
@@ -294,9 +279,10 @@ def get_weather_for_year(start_date: date, number: str, ws_id: int, url: str, da
                     file.write(parsed_data)
             else:
                 file.write(str.encode(csv_weather_data))
-        return True
+        return current_session, True
     else:
-        raise ValueError(f"Query to future {start_date.strftime('%Y.%m.%d')}!")
+        print(f"Query to future {start_date.strftime('%Y.%m.%d')}!")
+        return current_session, False
 
 
 def load_data_from_csv(folder: str, data_type: WeatherStationType) -> bool:
@@ -320,6 +306,7 @@ def load_data_from_csv(folder: str, data_type: WeatherStationType) -> bool:
                     db.commit()
                     result = True
                 except Error as e:
+                    db.rollback()
                     # UniqueViolation, was skipped because all directory will be check
                     print(f"Error is: {e}")
                     if e.pgcode != '23505' and e.pgcode != '25P02':
