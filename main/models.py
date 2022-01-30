@@ -55,7 +55,7 @@ class Region(models.Model):
 
 
 class Place(models.Model):
-    name = models.CharField(max_length=70, verbose_name='место',)
+    name = models.CharField(max_length=70, verbose_name='название',)
     latitude = models.FloatField(verbose_name='широта',)
     longitude = models.FloatField(verbose_name='долгота',)
     region = models.ForeignKey(Region, on_delete=models.CASCADE, verbose_name='регион', null=True,)
@@ -63,8 +63,8 @@ class Place(models.Model):
 
     class Meta:
         db_table = 'places'
-        verbose_name = 'название места'
-        verbose_name_plural = 'названия мест'
+        verbose_name = 'местоположение'
+        verbose_name_plural = 'местоположения'
         unique_together = ('country', 'region', 'name',)
 
 
