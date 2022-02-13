@@ -70,7 +70,7 @@ SELECT
 FROM X
 WHERE X.num = 1
 ```
-Выборка минимальной и максимальной температуры а также их дат по метеостанциям
+Выборка минимальной и максимальной температуры, а также их дат по метеостанциям
 ```sql
 WITH X AS (
 	SELECT
@@ -88,9 +88,9 @@ Y AS (
 	FROM max_temperatures a) 
 SELECT 
 	X.weather_station_id,
-	X.date,
+	X.date as cold_date,
 	X.temperature as min_temperature,
-	Y.date,
+	Y.date as hot_date,
 	Y.temperature as max_temperature
 FROM X
 INNER JOIN Y ON (X.weather_station_id = Y.weather_station_id)
