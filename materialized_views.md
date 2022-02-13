@@ -1,5 +1,5 @@
 Минимальные температуры по станциям и даты когда эти температуры были зафиксированы
-```buildoutcfg
+```sql
 CREATE MATERIALIZED VIEW min_temperatures AS (
 	WITH X AS (
 		SELECT
@@ -19,7 +19,7 @@ CREATE MATERIALIZED VIEW min_temperatures AS (
 		X.weather_station_id)
 ```
 Максимальные температуры по станциям и даты когда эти температуры были зафиксированы
-```buildoutcfg
+```sql
 CREATE MATERIALIZED VIEW max_temperatures AS (
 	WITH X AS (
 		SELECT
@@ -39,7 +39,7 @@ CREATE MATERIALIZED VIEW max_temperatures AS (
 		X.weather_station_id)
 ```
 Выбор только одной даты с минимальной температурой по станции
-```buildoutcfg
+```sql
 WITH X AS (
 	SELECT
 		a.weather_station_id,
@@ -55,7 +55,7 @@ FROM X
 WHERE X.num = 1
 ```
 Выбор только одной даты с максимальной температурой по станции
-```buildoutcfg
+```sql
 WITH X AS (
 	SELECT
 		a.weather_station_id,
@@ -71,7 +71,7 @@ FROM X
 WHERE X.num = 1
 ```
 Выборка минимальной и максимальной температуры а также их дат по метеостанциям
-```buildoutcfg
+```sql
 WITH X AS (
 	SELECT
 		a.weather_station_id,
