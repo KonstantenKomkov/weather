@@ -63,8 +63,10 @@ def update_csv_file(static_root: str, delimiter: str, station: WeatherStation, i
                 line_list[3] = station.last_date.strftime("%Y-%m-%d")
                 if line_list[9].find("\n") > -1:
                     line_list[9] = line_list[9].replace("\n", "")
-                line_list.append(f"{station.start_date.strftime('%Y-%m-%d')}\n")
+                if len(line_list) == 10:
+                    line_list.append(f"{station.start_date.strftime('%Y-%m-%d')}\n")
                 updated_line = delimiter.join(line_list)
+                print(f"{updated_line=}")
                 lines_list[index] = f"{updated_line}"
                 csv_file.seek(0)
                 csv_file.write("".join(lines_list))

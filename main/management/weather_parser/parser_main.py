@@ -46,9 +46,10 @@ def get_all_data() -> None:
         station: WeatherStation
         for index, station in enumerate(wanted_stations):
             # TODO: remove it after fix weather data saving
-            # if index not in (138,):
-            # if index > 126:
-            #     continue
+            # if index not in (69,70,157,158,190,191,308,309,310,311,313,314,315,329,330,331,400,401,402,403,404,405,406,
+            #                  407,408,409,484,485,629,642,648,649,658,668,671,672,673,677,687,688,690,696,702,710,725,728,731):
+            if index not in (70,):
+                continue
             if index > 0:
                 current_session = recreate_session(current_session)
 
