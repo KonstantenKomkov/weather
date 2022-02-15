@@ -107,7 +107,6 @@ CREATE MATERIALIZED VIEW avg_month_temperature_by_month_and_year AS (
 			EXTRACT(YEAR FROM a.date::date) as num_year
 		FROM
 			weather a
-		WHERE a.weather_station_id = 1
 		GROUP BY
 			a.date::date,
 			a.weather_station_id)
@@ -125,4 +124,43 @@ CREATE MATERIALIZED VIEW avg_month_temperature_by_month_and_year AS (
 		X.weather_station_id,
 		X.num_month,
 		X.num_year)
+```
+Средняя температура по месяцам и их количество
+```sql
+CREATE MATERIALIZED VIEW avg_month_temperatures AS (
+	WITH Y AS (
+		WITH X AS (
+			SELECT
+				a.weather_station_id,
+				AVG(a.temperature) as avg_day_temperature,
+				EXTRACT(MONTH FROM a.date::date) as num_month,
+				EXTRACT(YEAR FROM a.date::date) as num_year
+			FROM
+				weather a
+			GROUP BY
+				a.date::date,
+				a.weather_station_id)
+		SELECT
+			X.weather_station_id,
+			AVG(X.avg_day_temperature) as avg_month_temperature,
+			X.num_month,
+			X.num_year
+		FROM X
+		GROUP BY
+			X.weather_station_id,
+			X.num_month,
+			X.num_year
+		ORDER BY
+			X.weather_station_id,
+			X.num_month,
+			X.num_year)
+	SELECT
+		Y.weather_station_id,
+		AVG(Y.avg_month_temperature) as avg_all_unique_month_temperature,
+		Y.num_month,
+		COUNT(Y.num_month) as count_of_observations
+	FROM Y
+	GROUP BY
+		Y.weather_station_id,
+		Y.num_month)
 ```
