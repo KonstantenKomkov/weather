@@ -186,3 +186,17 @@ class Weather(models.Model):
         verbose_name = 'погода'
         verbose_name_plural = 'погода'
         unique_together = (('weather_station', 'date'),)
+
+
+class MinTemperatures(models.Model):
+    weather_station_id = models.ForeignKey(WeatherStation, on_delete=models.DO_NOTHING(), verbose_name='метеостанция',)
+    date = models.DateField(verbose_name='дата и время',)
+    temperature = models.DecimalField(
+        max_digits=3, decimal_places=1, blank=True, null=True,
+        verbose_name='минимальная температура воздуха, (°С) на высоте 2 м над поверхностью земли за весь период '
+                     'наблюдений',)
+
+    class Meta:
+        managed = False
+        db_table = 'min_temperatures'
+        verbose_name = 'Минимальные температуры по станциям и даты когда эти температуры были зафиксированы'
