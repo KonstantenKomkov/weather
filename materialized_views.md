@@ -220,7 +220,7 @@ CREATE MATERIALIZED VIEW avg_days_and_sum_plus_temperature_for_year AS (
 ```
 Среднее количество дней с положительной температурой больше 10 градусов и средняя сумма этих температур за год за весь период наблюдений
 ```sql
-CREATE MATERIALIZED VIEW avg_days_and_sum_plus_temperature_for_year AS (
+CREATE MATERIALIZED VIEW avg_days_and_sum_active_temperatures_for_years AS (
 	SELECT
 		weather_station_id,
 		avg_days,
