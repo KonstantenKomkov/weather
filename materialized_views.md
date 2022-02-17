@@ -164,9 +164,9 @@ CREATE MATERIALIZED VIEW avg_month_temperatures AS (
 		Y.weather_station_id,
 		Y.num_month)
 ```
-Среднее количество дней с положительной температурой за год за весь период наблюдений
+Среднее количество дней с положительной температурой и средняя сумма положительных температур за год за весь период наблюдений
 ```sql
-CREATE MATERIALIZED VIEW avg_days_with_plus_temperature_for_year AS (
+CREATE MATERIALIZED VIEW avg_days_and_sum_plus_temperature_for_year AS (
 	WITH Y AS (
 		WITH X AS (
 			SELECT
@@ -182,6 +182,7 @@ CREATE MATERIALIZED VIEW avg_days_with_plus_temperature_for_year AS (
 		SELECT
 			X.weather_station_id,
 			COUNT(X.avg_day_temperature) as day_with_plus_temperature,
+			ROUND(SUM(X.avg_day_temperature), 1) as sum_plus_temperature_for_year,
 			X.num_year
 		FROM X
 		WHERE X.avg_day_temperature > 0 and X.num_year != date_part('year', CURRENT_DATE)
@@ -194,6 +195,44 @@ CREATE MATERIALIZED VIEW avg_days_with_plus_temperature_for_year AS (
 	SELECT
 		Y.weather_station_id,
 		ROUND(AVG(Y.day_with_plus_temperature)) as avg_day_with_plus_temperature,
+		ROUND(AVG(Y.sum_plus_temperature_for_year)) as avg_sum_plus_temperature_for_years,
+		COUNT(Y.num_year)
+	FROM Y
+	GROUP BY
+		Y.weather_station_id)
+```
+Среднее количество дней с положительной температурой больше 10 градусов и средняя сумма этих температур за год за весь период наблюдений
+```sql
+CREATE MATERIALIZED VIEW avg_days_and_sum_active_temperatures_for_years AS (
+	WITH Y AS (
+		WITH X AS (
+			SELECT
+				a.weather_station_id,
+				AVG(a.temperature) as avg_day_temperature,
+				EXTRACT(MONTH FROM a.date::date) as num_month,
+				EXTRACT(YEAR FROM a.date::date) as num_year 
+			FROM
+				weather a
+			GROUP BY
+				a.date::date,
+				a.weather_station_id)
+		SELECT
+			X.weather_station_id,
+			COUNT(X.avg_day_temperature) as day_with_plus_temperature,
+			ROUND(SUM(X.avg_day_temperature), 1) as sum_plus_temperature_for_year,
+			X.num_year
+		FROM X
+		WHERE X.avg_day_temperature > 10 and X.num_year != date_part('year', CURRENT_DATE)
+		GROUP BY
+			X.weather_station_id,
+			X.num_year
+		ORDER BY
+			X.weather_station_id,
+			X.num_year)
+	SELECT
+		Y.weather_station_id,
+		ROUND(AVG(Y.day_with_plus_temperature)) as avg_day_with_plus_temperature,
+		ROUND(AVG(Y.sum_plus_temperature_for_year)) as avg_sum_plus_temperature_for_years,
 		COUNT(Y.num_year)
 	FROM Y
 	GROUP BY
