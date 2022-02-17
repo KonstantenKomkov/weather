@@ -166,7 +166,7 @@ CREATE MATERIALIZED VIEW avg_month_temperatures AS (
 ```
 Функция выбора средних значений количества дней и температур за всё время наблюдений, которые больше указанной нами температуры.
 ```sql
-CREATE OR REPLACE FUNCTION get_avg_days_and_temperatures_for_years3 (in more_than int)
+CREATE OR REPLACE FUNCTION get_avg_days_and_temperatures_for_years3 (in more_than numeric)
 RETURNS table (weather_station_id bigint,
 			   avg_days numeric,
 			   avg_temperature numeric,
