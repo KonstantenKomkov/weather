@@ -166,7 +166,7 @@ CREATE MATERIALIZED VIEW avg_month_temperatures AS (
 ```
 Функция выбора средних значений количества дней и температур за всё время наблюдений, которые больше указанной нами температуры.
 ```sql
-CREATE OR REPLACE FUNCTION get_avg_days_and_temperatures_for_years3 (in more_than numeric)
+CREATE OR REPLACE FUNCTION get_avg_days_and_temperatures_for_years (in more_than numeric)
 RETURNS table (weather_station_id bigint,
 			   avg_days numeric,
 			   avg_temperature numeric,
@@ -227,4 +227,23 @@ CREATE MATERIALIZED VIEW avg_days_and_sum_active_temperatures_for_years AS (
 		avg_temperature,
 		count_years
 	FROM get_avg_days_and_temperatures_for_years(10))
+```
+Финальный запрос в процессе
+```sql
+SELECT
+	a.weather_station_id,
+	a.date as min_temperature_date,
+	a.temperature as min_temperature,
+	b.temperature as max_temperature,
+	b.date as max_temperature_date,
+	c.avg_days as avg_days_with_plas_temperature_for_year,
+	c.avg_temperature as avg_sum_plus_temperature_for_year,
+	c.count_years,
+	d.avg_days as avg_days_with_active_temperature_for_year,
+	d.avg_temperature as avg_sum_active_temperature_for_year
+FROM
+	min_temperatures a
+	INNER JOIN max_temperatures b ON (a.weather_station_id = b.weather_station_id)
+	INNER JOIN avg_days_and_sum_plus_temperature_for_year c ON (a.weather_station_id = c.weather_station_id)
+	INNER JOIN avg_days_and_sum_active_temperatures_for_years d ON (a.weather_station_id = d.weather_station_id)
 ```
