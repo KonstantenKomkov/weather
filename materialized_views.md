@@ -232,37 +232,47 @@ CREATE MATERIALIZED VIEW avg_days_and_sum_active_temperatures_for_years AS (
 ```sql
 CREATE MATERIALIZED VIEW agro_temperature_indicators AS (
 	WITH X AS (
-	SELECT
-		e.weather_station_id,
-		e.avg_all_unique_month_temperature as avg_january_temperature_for_years
-	FROM
-		avg_month_temperatures e
-	WHERE e.num_month = 1),
-	Y AS (
 		SELECT
-		e.weather_station_id,
-		e.avg_all_unique_month_temperature as avg_july_temperature_for_years
-	FROM
-		avg_month_temperatures e
-	WHERE e.num_month = 7)
-	SELECT
-		a.weather_station_id,
-		a.date as min_temperature_date,
-		a.temperature as min_temperature,
-		b.temperature as max_temperature,
-		b.date as max_temperature_date,
-		c.avg_days as avg_days_with_plas_temperature_for_year,
-		c.avg_temperature as avg_sum_plus_temperature_for_year,
-		c.count_years,
-		d.avg_days as avg_days_with_active_temperature_for_year,
-		d.avg_temperature as avg_sum_active_temperature_for_year,
-		X.avg_january_temperature_for_years,
-		Y.avg_july_temperature_for_years
-	FROM
-		min_temperatures a
-		INNER JOIN max_temperatures b ON (a.weather_station_id = b.weather_station_id)
-		INNER JOIN avg_days_and_sum_plus_temperature_for_year c ON (a.weather_station_id = c.weather_station_id)
-		INNER JOIN avg_days_and_sum_active_temperatures_for_years d ON (a.weather_station_id = d.weather_station_id)
-		INNER JOIN X ON (a.weather_station_id = X.weather_station_id)
-		INNER JOIN Y ON (a.weather_station_id = Y.weather_station_id))
+			e.weather_station_id,
+			e.avg_all_unique_month_temperature as avg_january_temperature_for_years
+		FROM
+			avg_month_temperatures e
+		WHERE e.num_month = 1),
+		Y AS (
+			SELECT
+			e.weather_station_id,
+			e.avg_all_unique_month_temperature as avg_july_temperature_for_years
+		FROM
+			avg_month_temperatures e
+		WHERE e.num_month = 7)
+		SELECT
+			a.weather_station_id,
+			a.avg_days as avg_days_with_plas_temperature_for_year,
+			a.avg_temperature as avg_sum_plus_temperature_for_year,
+			a.count_years,
+			b.temperature as max_temperature,
+			c.temperature as min_temperature,		
+			d.avg_days as avg_days_with_active_temperature_for_year,
+			d.avg_temperature as avg_sum_active_temperature_for_year,
+			X.avg_january_temperature_for_years,
+			Y.avg_july_temperature_for_years
+		FROM
+			avg_days_and_sum_plus_temperature_for_year a
+			INNER JOIN max_temperatures b ON (a.weather_station_id = b.weather_station_id)
+			INNER JOIN min_temperatures c ON (a.weather_station_id = c.weather_station_id)
+			INNER JOIN avg_days_and_sum_active_temperatures_for_years d ON (a.weather_station_id = d.weather_station_id)
+			INNER JOIN X ON (a.weather_station_id = X.weather_station_id)
+			INNER JOIN Y ON (a.weather_station_id = Y.weather_station_id)
+		GROUP BY
+			a.weather_station_id,
+			a.avg_days,
+			a.avg_temperature,
+			a.count_years,
+			b.temperature,
+			c.temperature,
+			d.avg_days,
+			d.avg_temperature,
+			X.avg_january_temperature_for_years,
+			Y.avg_july_temperature_for_years
+)
 ```
