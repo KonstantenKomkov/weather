@@ -273,6 +273,5 @@ CREATE MATERIALIZED VIEW agro_temperature_indicators AS (
 			d.avg_days,
 			d.avg_temperature,
 			X.avg_january_temperature_for_years,
-			Y.avg_july_temperature_for_years
-)
+			Y.avg_july_temperature_for_years)
 ```
