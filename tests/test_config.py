@@ -8,8 +8,9 @@ def test_settings_defaults():
     assert settings.db_engine == "django.db.backends.postgresql"
 
 
-def test_allowed_hosts_parsing():
-    settings = Settings(_env_file=None, allowed_hosts="localhost, 127.0.0.1 ,web")
+def test_allowed_hosts_parsing(monkeypatch):
+    monkeypatch.setenv("ALLOWED_HOSTS", "localhost, 127.0.0.1 ,web")
+    settings = Settings(_env_file=None)
     assert settings.allowed_hosts_list == ["localhost", "127.0.0.1", "web"]
 
 
