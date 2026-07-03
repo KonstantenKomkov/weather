@@ -23,6 +23,11 @@ count_cloud_cover_nh = ['Облаков нет.', '10%  или менее, но 
 _cloudiness_by_description: dict[str, int] | None = None
 
 
+def reset_cloudiness_cache() -> None:
+    global _cloudiness_by_description
+    _cloudiness_by_description = None
+
+
 def _get_cloudiness_cache() -> dict[str, int]:
     global _cloudiness_by_description
     if _cloudiness_by_description is None:

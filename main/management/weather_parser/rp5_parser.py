@@ -11,7 +11,6 @@ from typing import Tuple
 
 import main.management.weather_parser.rp5_ru_headers as rp5_ru_headers
 import main.management.weather_parser.rp5_md_headers as rp5_md_headers
-import main.management.weather_parser.yandex_headers as ya
 from main.models import Country, WeatherStation, WeatherStationType
 from weather.config import YandexCredentials
 from weather.settings import WEATHER_PARSER

@@ -7,7 +7,7 @@ from time import sleep
 import zlib
 from collections import deque
 from django.db import connection, transaction
-from django.db.utils import DatabaseError
+from django.db.utils import DatabaseError, IntegrityError
 import main.management.weather_parser.rp5_parser as rp5_parser
 import main.management.weather_parser.processing as processing
 import main.management.weather_parser.weather_csv as weather_csv
@@ -284,15 +284,25 @@ def get_weather_for_year(start_date: date, number: str, ws_id: int, url: str, da
         return current_session, False
 
 
+def _pgsql_code(exc: DatabaseError) -> str | None:
+    cause = exc.__cause__
+    if cause is not None and hasattr(cause, "pgcode"):
+        return cause.pgcode
+    if hasattr(exc, "pgcode"):
+        return exc.pgcode
+    return None
+
+
 def load_data_from_csv(folder: str, data_type: WeatherStationType) -> bool:
     global _STATIC_ROOT
 
     result: bool = False
-    if path.isdir(f"{_STATIC_ROOT}{folder}"):
-        for weather_file in listdir(f"{_STATIC_ROOT}{folder}"):
-            if path.isfile(f"{_STATIC_ROOT}{folder}\\{weather_file}") and weather_file[-4:] == '.csv':
+    folder_path = path.join(_STATIC_ROOT, folder)
+    if path.isdir(folder_path):
+        for weather_file in listdir(folder_path):
+            csv_path = path.join(folder_path, weather_file)
+            if path.isfile(csv_path) and weather_file.endswith(".csv"):
                 try:
-                    csv_path = f"{_STATIC_ROOT}{folder}\\{weather_file}"
                     with transaction.atomic():
                         with connection.cursor() as cursor:
                             if data_type.type == "метеостанция":
@@ -300,19 +310,22 @@ def load_data_from_csv(folder: str, data_type: WeatherStationType) -> bool:
                             elif data_type.type == "METAR":
                                 cursor.execute(queries.insert_csv_metar_data(csv_path, DELIMITER))
                     result = True
+                except IntegrityError:
+                    print("Error is: duplicate weather row")
+                    if not WEATHER_PARSER["DELETE_CSV_FILES"]:
+                        remove(csv_path)
                 except DatabaseError as e:
-                    pgcode = getattr(e.__cause__, "pgcode", None)
+                    pgcode = _pgsql_code(e)
                     # UniqueViolation, was skipped because all directory will be check
                     print(f"Error is: {e}")
                     if pgcode != "23505" and pgcode != "25P02":
                         # don't remove file for searching error
-                        print(f"My error: {pgcode}. File in folder {folder}\\{weather_file}.")
-                    else:
-                        if not WEATHER_PARSER['DELETE_CSV_FILES']:
-                            remove(f"{_STATIC_ROOT}{folder}\\{weather_file}")
+                        print(f"My error: {pgcode}. File in folder {folder_path}{path.sep}{weather_file}.")
+                    elif not WEATHER_PARSER["DELETE_CSV_FILES"]:
+                        remove(csv_path)
                 else:
-                    if not WEATHER_PARSER['DELETE_CSV_FILES']:
-                        remove(f"{_STATIC_ROOT}{folder}\\{weather_file}")
+                    if not WEATHER_PARSER["DELETE_CSV_FILES"]:
+                        remove(csv_path)
     return result
 
 
