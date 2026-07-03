@@ -189,7 +189,7 @@ class Weather(models.Model):
 
 
 class MinTemperatures(models.Model):
-    weather_station_id = models.ForeignKey(WeatherStation, on_delete=models.DO_NOTHING(), verbose_name='метеостанция',)
+    weather_station_id = models.ForeignKey(WeatherStation, on_delete=models.DO_NOTHING, verbose_name='метеостанция',)
     date = models.DateField(verbose_name='дата и время',)
     temperature = models.DecimalField(
         max_digits=3, decimal_places=1, blank=True, null=True,

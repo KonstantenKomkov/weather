@@ -1,3 +1,15 @@
-/config.ini
-/main/management/weather_parser/yandex_headers.py
+.env
+.venv/
+venv/
+config.ini
 /.idea/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+.docker/
+celerybeat-schedule*
+main/management/weather_parser/yandex_headers.py
+mainapp/node_modules/

@@ -1,0 +1,41 @@
+---
+description: Infrastructure and project layout conventions
+alwaysApply: true
+---
+
+# Project Conventions
+
+## Stack
+
+Django 4.2 LTS · DRF · Celery · PostgreSQL 16 · Redis 7 · Docker · Python 3.12.
+
+## Конфигурация
+
+- Настройки приложения: `weather/config.py` (`pydantic-settings`, переменные из `.env`).
+- Django settings: `weather/settings.py` — не дублировать чтение `config.ini`.
+- Legacy `config.ini` не использовать; для миграции — `.env.example`.
+
+## Команды (Makefile)
+
+| Команда | Назначение |
+|---|---|
+| `make up` / `make down` | Docker Compose |
+| `make migrate` | Django migrations |
+| `make test` | pytest |
+| `make get-weather` | парсер rp5.ru |
+| `make lint` / `make format` | ruff |
+
+Локальная разработка: `cp .env.example .env` → `make up` → `make migrate`.
+
+## Зависимости
+
+- Прямые зависимости — `requirements.txt`; dev — `requirements-dev.txt`.
+- Не возвращать pip-freeze со всеми транзитивными пакетами.
+
+## API docs
+
+OpenAPI: drf-spectacular — `/api/docs/`, схема `/api/schema/`.
+
+## Миграции
+
+Только через Django migrations (`main/migrations/`). После изменения моделей — `makemigrations` + `migrate`; на prod — без интерактива, с учётом nullable FK.

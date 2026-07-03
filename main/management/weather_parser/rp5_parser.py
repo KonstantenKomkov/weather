@@ -13,8 +13,13 @@ import main.management.weather_parser.rp5_ru_headers as rp5_ru_headers
 import main.management.weather_parser.rp5_md_headers as rp5_md_headers
 import main.management.weather_parser.yandex_headers as ya
 from main.models import Country, WeatherStation, WeatherStationType
-from weather.app_models import Yandex
+from weather.config import YandexCredentials
 from weather.settings import WEATHER_PARSER
+
+try:
+    import main.management.weather_parser.yandex_headers as ya
+except ImportError:
+    from main.management.weather_parser import yandex_headers_stub as ya
 
 browsers = ['Chrome', 'Firefox', 'Opera', 'Edge']
 
@@ -49,7 +54,7 @@ def get_coordinates(a: str) -> tuple[float, float] | tuple[None, None]:
         raise (TypeError(f"must be str, not {type(a)}"))
 
 
-def find_country_by_coordinates(yandex: Yandex, latitude, longitude) -> Country:
+def find_country_by_coordinates(yandex: YandexCredentials, latitude, longitude) -> Country:
     """Function used yandex maps api and get country by coordinates."""
 
     data = {
@@ -64,8 +69,10 @@ def find_country_by_coordinates(yandex: Yandex, latitude, longitude) -> Country:
                              f'geocoder_sco=latlong&origin=jsapi2Geocoder&apikey={yandex.api_key}',
                              data=data, headers=ya.header, )
     if response.text == '{"statusCode":401,"error":"Unauthorized","message":"Unauthorized"}':
-        raise ValueError("Не удалось авторизоваться в API Yandex map - не можем получить название страны, установите "
-                         "корректные значения для API Yandex map в config.ini, раздел yandex.")
+        raise ValueError(
+            "Не удалось авторизоваться в API Yandex map — проверьте YANDEX_* в .env "
+            "и cookie в yandex_headers.py."
+        )
     else:
         json_string = response.text.replace(f'/**/{yandex.id}(', '')
         json_string = json_string[:-2]
@@ -89,7 +96,7 @@ def find_metar(soup) -> int:
 def get_missing_ws_info(
         current_session: Session,
         station: WeatherStation,
-        yandex: Yandex) -> Tuple[bool, WeatherStation | None]:
+        yandex: YandexCredentials) -> Tuple[bool, WeatherStation | None]:
     """ Getting country, numbers weather station, start date of observations, from site rp5.ru."""
 
     try:

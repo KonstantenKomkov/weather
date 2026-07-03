@@ -12,12 +12,15 @@ import main.management.weather_parser.rp5_parser as rp5_parser
 import main.management.weather_parser.processing as processing
 import main.management.weather_parser.weather_csv as weather_csv
 import main.management.weather_parser.queries as queries
-from weather.settings import app, WEATHER_PARSER, STATIC_ROOT
+from weather.config import settings
+from weather.settings import WEATHER_PARSER, STATIC_DATA_PATH
 from main.models import Country, Place, WeatherStation, WeatherStationType
 
-SAVE_IN_DB: bool = False if app.database.name == '' else True
-DELIMITER: str = WEATHER_PARSER['CSV_DELIMITER']
-_STATIC_ROOT = f"{STATIC_ROOT}\\csv_data\\"
+SAVE_IN_DB: bool = settings.database_configured
+DELIMITER: str = WEATHER_PARSER["CSV_DELIMITER"]
+_STATIC_ROOT = str(STATIC_DATA_PATH)
+if not _STATIC_ROOT.endswith(path.sep):
+    _STATIC_ROOT += path.sep
 current_session = Session()
 now: datetime = datetime.now()
 yesterday: date = now.date() - timedelta(days=1)
@@ -45,11 +48,6 @@ def get_all_data() -> None:
 
         station: WeatherStation
         for index, station in enumerate(wanted_stations):
-            # TODO: remove it after fix weather data saving
-            # if index not in (69,70,157,158,190,191,308,309,310,311,313,314,315,329,330,331,400,401,402,403,404,405,406,
-            #                  407,408,409,484,485,629,642,648,649,658,668,671,672,673,677,687,688,690,696,702,710,725,728,731):
-            if index not in (70,):
-                continue
             if index > 0:
                 current_session = recreate_session(current_session)
 
@@ -118,7 +116,7 @@ def prepared_loading_data(station: WeatherStation, links_with_error: list[Weathe
     """Function check current link on error and WeatherStation on unique. If all is ok return true else false.
     Also returning arrays if with duplicated links or links with errors."""
     if station.last_date is None or station.number is None:
-        is_error, station = rp5_parser.get_missing_ws_info(current_session, station, app.yandex)
+        is_error, station = rp5_parser.get_missing_ws_info(current_session, station, settings.yandex)
         print(f"Start getting data for {station.place.name} with "
               f"start date of observations {station.last_date}...")
 

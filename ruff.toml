@@ -1,0 +1,13 @@
+target-version = "py312"
+line-length = 100
+exclude = ["static", "mainapp/node_modules", "mainapp/build", ".docker"]
+
+[lint]
+select = ["E", "F", "I", "UP"]
+ignore = ["F403", "F405", "E501", "I001", "UP006", "UP015", "UP025", "UP031", "UP035"]
+
+[lint.per-file-ignores]
+"main/management/**" = ["F403", "F405", "F821"]
+"main/admin.py" = ["F403", "F405"]
+"main/tasks.py" = ["F403"]
+"main/migrations/**" = ["I001"]

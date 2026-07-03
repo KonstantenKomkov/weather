@@ -27,6 +27,28 @@ python manage.py get_weather
 
 Open config.example.ini and write connection to your postgresql database or don't do it if you want to save data in csv files.
 Write folder path for saving data it is necessarily. Delete .example from config name. If you want use another database check how to make it with [pyDAL][2].
+
+## Docker (recommended)
+
+```bash
+cp .env.example .env
+make up
+make migrate
+```
+
+API docs: http://localhost:8000/api/docs/
+
+Commands:
+
+```bash
+make get-weather
+make clear-cities
+make test
+make logs-web
+```
+
+Configuration is stored in `.env` (see `.env.example`). Legacy `config.ini` is no longer used.
+
 Parser work with csv file (cities.csv) with 3 required parameters:  
 - city name (maybe place name);
 - link on rp5 site page with that city or place;
@@ -61,7 +83,7 @@ for cities.csv file contain unique links of your finded stations.
 
 How to use Yandex API
 -------------------------
-Find main -> example directory and change {your_api_key} in reverse_geocode.html. Open than file in browser. And copy token, id to config.ini, you find that in developers settings -> network -> JS -> click on the map for callback -> Request URL string will contain token and id, Request Headers will contain cookie - change cookie in yandex_headers.py. Also you need to add your login (everything up to the symbol @ in your yandex email) and password.
+Find main -> example directory and change {your_api_key} in reverse_geocode.html. Open than file in browser. And copy token, id to `.env` (`YANDEX_*` variables), you find that in developers settings -> network -> JS -> click on the map for callback -> Request URL string will contain token and id, Request Headers will contain cookie - change cookie in yandex_headers.py. Also you need to add your login (everything up to the symbol @ in your yandex email) and password.
 
 [1]: https://rp5.ru/Погода_в_мире                                                                            "rp5.ru"
 [2]: http://web2py.com/books/default/chapter/29/06/the-database-abstraction-layer                            "pyDAL"

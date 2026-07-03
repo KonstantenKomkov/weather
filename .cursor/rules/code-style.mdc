@@ -1,0 +1,17 @@
+---
+description: Python code style for Weather project
+alwaysApply: true
+---
+
+# Code Style
+
+1. **Imports**: stdlib → third-party → Django → project (`weather.*`, `main.*`). Разделять пустой строкой.
+2. **Типизация**: явные аннотации аргументов и возвращаемых типов; `X | None` вместо `Optional`.
+3. **Комментарии**: только неочевидная логика и `# TODO:`. Не описывать очевидное.
+4. **Line length**: до **100** символов (см. `ruff.toml`).
+5. **String quotes**: двойные `"` в Python-коде.
+6. **Линтер**: перед коммитом `make lint` / `ruff check .`; форматирование — `make format`.
+7. **Тесты**: новое поведение API/конфига — в `tests/` через pytest; запуск — `make test`.
+8. **Не добавлять** лишний scope: минимальный diff, без рефакторинга «заодно».
+9. **Секреты**: только в `.env` (не коммитить); образец — `.env.example`.
+10. **Legacy parser**: `print()` в `main/management/weather_parser/` допустим; в остальном коде — logging или Django messages.

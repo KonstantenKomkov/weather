@@ -1,0 +1,16 @@
+---
+description: DRF API conventions
+globs: main/api/**/*.py
+alwaysApply: false
+---
+
+# Django REST API
+
+1. **ViewSets** — read-only там, где нет явной записи через API (`ReadOnlyModelViewSet`).
+2. **Serializers** — в `main/api/serializers.py`; для list/retrieve разных форм — `action_to_serializer` как в `WeatherStationViewSet`.
+3. **URLs** — регистрация через `SimpleRouter` в `main/api/urls.py`; префикс `/api/`.
+4. **Auth** — TokenAuthentication + djoser (`/api/auth/`); не включать auth в Swagger без необходимости.
+5. **Пагинация** — `LimitOffsetPagination`, `PAGE_SIZE=10` (settings).
+6. **Фильтры** — `django-filter`; добавлять `filter_backends` на ViewSet явно при необходимости.
+7. **Схема** — drf-spectacular; новые endpoints должны появляться в `/api/docs/`.
+8. **JSON** — snake_case (стандарт DRF/ Django model fields).

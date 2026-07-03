@@ -1,0 +1,34 @@
+---
+description: rp5.ru weather parser conventions
+globs: main/management/**/*.py
+alwaysApply: false
+---
+
+# Weather Parser
+
+## Точки входа
+
+- `python manage.py get_weather` — загрузка по `static/csv_data/cities.txt`
+- `find_sources`, `update_sources`, `clear_cities` — вспомогательные команды
+
+## Конфигурация парсера
+
+- `WEATHER_PARSER` и `STATIC_DATA_PATH` — из `weather/settings.py` / `.env` (`CSV_DELIMITER`, `STATIC_DATA_PATH`).
+- Пути к CSV — через `os.path.join` / `path.sep`, не хардкод `\`.
+- `SAVE_IN_DB` определяется `settings.database_configured` (`DB_NAME` не пустой).
+
+## Данные
+
+- CSV-разделитель по умолчанию `#`.
+- Формат `cities.txt`: place, link, type (0=SYNOP, 1=METAR) + опциональные колонки.
+- Задержки между запросами — `WEATHER_PARSER['MIN_DELAY_BETWEEN_REQUESTS']` … `MAX_…`.
+
+## Yandex Maps API
+
+- Credentials: `YANDEX_*` в `.env`.
+- HTTP headers: `yandex_headers.py` (локально, в `.gitignore`); fallback — `yandex_headers_stub.py`.
+
+## Осторожно
+
+- Не оставлять отладочные фильтры станций (`if index not in (...): continue`).
+- Альтернативный доступ к БД — pyDAL в `weather_parser/db.py`; основной путь — Django ORM.

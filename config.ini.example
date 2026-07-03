@@ -1,8 +1,11 @@
+# Deprecated: use .env instead (see .env.example).
+# This file is kept for reference only.
+
 [app]
 secret_key=django-insecure-...
 
 [db]
-egine=django.db.backends.postgresql
+engine=django.db.backends.postgresql
 user=postgres
 password=your_password
 host=127.0.0.1
