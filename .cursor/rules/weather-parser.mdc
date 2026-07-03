@@ -31,4 +31,4 @@ alwaysApply: false
 ## Осторожно
 
 - Не оставлять отладочные фильтры станций (`if index not in (...): continue`).
-- Альтернативный доступ к БД — pyDAL в `weather_parser/db.py`; основной путь — Django ORM.
+- Доступ к БД — Django ORM; bulk-загрузка CSV — `COPY` через `django.db.connection`.

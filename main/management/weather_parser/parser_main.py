@@ -6,8 +6,8 @@ from random import randint
 from time import sleep
 import zlib
 from collections import deque
-from psycopg2 import Error
-from main.management.weather_parser.db import db
+from django.db import connection, transaction
+from django.db.utils import DatabaseError
 import main.management.weather_parser.rp5_parser as rp5_parser
 import main.management.weather_parser.processing as processing
 import main.management.weather_parser.weather_csv as weather_csv
@@ -292,25 +292,21 @@ def load_data_from_csv(folder: str, data_type: WeatherStationType) -> bool:
         for weather_file in listdir(f"{_STATIC_ROOT}{folder}"):
             if path.isfile(f"{_STATIC_ROOT}{folder}\\{weather_file}") and weather_file[-4:] == '.csv':
                 try:
-                    if data_type.type == "метеостанция":
-                        # TODO: Отказаться от использования pyDAL использовать встроенное в Django
-                        db.executesql(queries.insert_csv_weather_station_data(
-                            f"{_STATIC_ROOT}{folder}\\{weather_file}",
-                            DELIMITER))
-                    elif data_type.type == "METAR":
-                        # TODO: Отказаться от использования pyDAL использовать встроенное в Django
-                        db.executesql(queries.insert_csv_metar_data(
-                            f"{_STATIC_ROOT}{folder}\\{weather_file}",
-                            DELIMITER))
-                    db.commit()
+                    csv_path = f"{_STATIC_ROOT}{folder}\\{weather_file}"
+                    with transaction.atomic():
+                        with connection.cursor() as cursor:
+                            if data_type.type == "метеостанция":
+                                cursor.execute(queries.insert_csv_weather_station_data(csv_path, DELIMITER))
+                            elif data_type.type == "METAR":
+                                cursor.execute(queries.insert_csv_metar_data(csv_path, DELIMITER))
                     result = True
-                except Error as e:
-                    db.rollback()
+                except DatabaseError as e:
+                    pgcode = getattr(e.__cause__, "pgcode", None)
                     # UniqueViolation, was skipped because all directory will be check
                     print(f"Error is: {e}")
-                    if e.pgcode != '23505' and e.pgcode != '25P02':
+                    if pgcode != "23505" and pgcode != "25P02":
                         # don't remove file for searching error
-                        print(f"My error: {e.pgcode}. File in folder {folder}\\{weather_file}.")
+                        print(f"My error: {pgcode}. File in folder {folder}\\{weather_file}.")
                     else:
                         if not WEATHER_PARSER['DELETE_CSV_FILES']:
                             remove(f"{_STATIC_ROOT}{folder}\\{weather_file}")

@@ -1,32 +1,8 @@
 from datetime import datetime
-from main.management.weather_parser.db import db
 
-
-def get_cloudiness_id(db_cloudiness_list: list, value: str):
-    """Function check are there description of cloudiness in list or we should write it to database."""
-    # print(f"In function get_cloudiness_id, {value=}")
-    if db_cloudiness_list:
-        for row in db_cloudiness_list:
-            if row[1] == value:
-                return db_cloudiness_list, row[0]
-        else:
-            # print(f"Writing to db {value=}")
-            cloudiness_id = db.executesql("INSERT INTO cloudiness (description) VALUES ('%(value)s') "
-                                          "RETURNING id" % {'value': value})[0][0]
-            db_cloudiness_list = db.executesql("SELECT * FROM cloudiness")
-            db.commit()
-            return db_cloudiness_list, cloudiness_id
-    else:
-        # print(f"Writing to db {value=}")
-        cloudiness_id = db.executesql("INSERT INTO cloudiness (description) VALUES ('%(value)s') "
-                                      "RETURNING id" % {'value': value})[0][0]
-        db_cloudiness_list = db.executesql("SELECT * FROM cloudiness")
-        db.commit()
-    return db_cloudiness_list, cloudiness_id
-
+from main.models import Cloudiness
 
 # data from table 'wind_directions'
-db_cloudiness_list = db.executesql("SELECT * FROM cloudiness")
 wind_direction = ['ветер, дующий с юга', 'ветер, дующий с юго-востока', 'ветер, дующий с востока',
                   'штиль, безветрие', 'ветер, дующий с юго-юго-востока', 'ветер, дующий с северо-востока',
                   'ветер, дующий с северо-северо-востока', 'ветер, дующий с западо-северо-запада',
@@ -43,6 +19,26 @@ cloud_cover = ['Облаков нет.', '10%  или менее, но не 0', 
 count_cloud_cover_nh = ['Облаков нет.', '10%  или менее, но не 0', '20–30', '40', '50', '60',
                         '70 – 80', '90  или более, но не 100%', '100', 'null',
                         'Небо не видно из-за тумана и/или других метеорологических явлений.', ]
+
+_cloudiness_by_description: dict[str, int] | None = None
+
+
+def _get_cloudiness_cache() -> dict[str, int]:
+    global _cloudiness_by_description
+    if _cloudiness_by_description is None:
+        _cloudiness_by_description = {
+            row.description: row.pk for row in Cloudiness.objects.all()
+        }
+    return _cloudiness_by_description
+
+
+def get_cloudiness_id(value: str) -> int:
+    cache = _get_cloudiness_cache()
+    if value in cache:
+        return cache[value]
+    cloudiness, _created = Cloudiness.objects.get_or_create(description=value)
+    cache[value] = cloudiness.pk
+    return cloudiness.pk
 
 
 def weather_stations_data_processing(delimiter: str, csv_weather_data: list, ws_id: int) -> str:
@@ -118,7 +114,7 @@ def weather_stations_data_processing(delimiter: str, csv_weather_data: list, ws_
 
 def metar_data_processing(delimiter: str, csv_weather_data: list, ws_id: int) -> str:
     """ Processing data for database. Check models.py for see database structure."""
-    global wind_direction, db_cloudiness_list
+    global wind_direction
 
     metars_header = \
         f'weather_station_id{delimiter} "date"{delimiter} temperature{delimiter} pressure{delimiter} ' \
@@ -146,7 +142,7 @@ def metar_data_processing(delimiter: str, csv_weather_data: list, ws_id: int) ->
         if line_list[10] == 'null':
             line_list[10] = 10
         else:
-            db_cloudiness_list, line_list[10] = [*get_cloudiness_id(db_cloudiness_list, line_list[10])]
+            line_list[10] = get_cloudiness_id(line_list[10])
 
         if line_list[5].lower() in wind_direction:
             line_list[5] = wind_direction.index(line_list[5].lower()) + 1
@@ -157,19 +153,6 @@ def metar_data_processing(delimiter: str, csv_weather_data: list, ws_id: int) ->
         if line_list[2] != 'null':
             if float(line_list[2]) < 500 or float(line_list[2]) > 900:
                 line_list[2] = 'null'
-        # data_at_time["date"] = line_list[0]
-        # data_at_time["temperature"] = line_list[1]
-        # data_at_time["pressure"] = line_list[2]
-        # data_at_time["pressure_converted"] = line_list[3]
-        # data_at_time["humidity"] = line_list[4]
-        # data_at_time["wind_direction_id"] = line_list[5]
-        # data_at_time["wind_speed"] = line_list[6]
-        # data_at_time["max_wind_speed"] = line_list[7]
-        # data_at_time["current_weather"] = line_list[8]
-        # data_at_time["past_weather"] = line_list[9]
-        # data_at_time["cloud_cover_id"] = line_list[10]
-        # data_at_time["visibility"] = line_list[11]
-        # data_at_time["dew_point"] = line_list[12]
 
         if line_list[11].find(' и более') > -1:
             line_list[11] = line_list[11][:line_list[11].find(' и более')]
