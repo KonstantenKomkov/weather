@@ -2,11 +2,12 @@ from django.contrib import admin
 from django.urls import include, path
 from drf_spectacular.views import SpectacularAPIView, SpectacularRedocView, SpectacularSwaggerView
 
-from main.views import index
+from main.views import health, index
 
 urlpatterns = [
     path("admin/", admin.site.urls),
     path("", index),
+    path("health", health),
     path("api/", include("main.api.urls")),
     path("api/auth/", include("djoser.urls")),
     path("api/auth/", include("djoser.urls.authtoken")),

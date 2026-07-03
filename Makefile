@@ -1,6 +1,7 @@
-.PHONY: help build up down restart logs logs-web logs-db ps shell db-shell migrate test lint format get-weather clear-cities clean env frontend-install frontend-dev frontend-build ci
+.PHONY: help build build-prod up up-prod down restart logs logs-web logs-db ps shell db-shell migrate test lint format get-weather clear-cities clean env frontend-install frontend-dev frontend-build ci update-prod-code
 
 DOCKER_COMPOSE = docker compose
+DOCKER_COMPOSE_PROD = docker compose -f docker-compose.prod.yml
 WEB_SERVICE = web
 DB_SERVICE = db
 
@@ -8,8 +9,10 @@ help:
 	@echo "Weather — доступные команды:"
 	@echo ""
 	@echo "  make env              — создать .env из .env.example"
-	@echo "  make build            — собрать Docker образы"
-	@echo "  make up               — запустить все сервисы"
+	@echo "  make build            — собрать Docker образы (dev)"
+	@echo "  make build-prod       — собрать production-образ (Vite + gunicorn)"
+	@echo "  make up               — запустить все сервисы (dev)"
+	@echo "  make up-prod          — запустить prod-стек"
 	@echo "  make down             — остановить все сервисы"
 	@echo "  make restart          — перезапустить все сервисы"
 	@echo "  make logs             — логи всех сервисов"
@@ -29,6 +32,7 @@ help:
 	@echo "  make get-weather      — запустить парсер rp5.ru"
 	@echo "  make clear-cities     — очистить cities.txt"
 	@echo "  make clean            — удалить контейнеры и тома"
+	@echo "  make update-prod-code — обновить код на prod-сервере (см. documents/update_prod.md)"
 	@echo ""
 
 env:
@@ -37,9 +41,16 @@ env:
 build:
 	$(DOCKER_COMPOSE) build
 
+build-prod:
+	$(DOCKER_COMPOSE_PROD) build
+
 up: env
 	@mkdir -p .docker/postgres_data
 	$(DOCKER_COMPOSE) up -d
+
+up-prod: env
+	@mkdir -p data/postgres
+	$(DOCKER_COMPOSE_PROD) up -d
 
 down:
 	$(DOCKER_COMPOSE) down
@@ -98,3 +109,7 @@ clear-cities:
 
 clean:
 	$(DOCKER_COMPOSE) down -v --remove-orphans
+
+update-prod-code:
+	@chmod +x scripts/update_prod_code.sh
+	./scripts/update_prod_code.sh $(if $(dry_run),--dry-run,) $(if $(skip_push_check),--skip-push-check,)

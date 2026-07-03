@@ -10,6 +10,12 @@ __pycache__/
 .coverage
 htmlcov/
 .docker/
+data/
 celerybeat-schedule*
 main/management/weather_parser/yandex_headers.py
 mainapp/node_modules/
+mainapp/build/
+
+# Legacy CRA output in STATIC_ROOT (frontend now in mainapp/build/)
+static/js/
+static/css/

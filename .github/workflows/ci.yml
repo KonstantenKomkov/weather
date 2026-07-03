@@ -88,3 +88,11 @@ jobs:
         run: |
           npm ci
           npm run build
+
+  prod-image:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build production Docker image
+        run: docker compose -f docker-compose.prod.yml build web

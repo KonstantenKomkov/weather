@@ -17,3 +17,4 @@ beautifulsoup4==4.12.3
 ephem==4.1.5
 pydal==20260520.0
 gunicorn==23.0.0
+whitenoise==6.9.0

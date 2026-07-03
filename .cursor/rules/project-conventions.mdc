@@ -44,6 +44,14 @@ React 18 + Vite в `mainapp/`. Сборка: `make frontend-build` → `mainapp/
 
 GitHub Actions: `.github/workflows/ci.yml` — ruff, pytest, `npm run build`. Локально: `make ci`.
 
+## Production
+
+`docker-compose.prod.yml` + multi-stage Dockerfile (Vite build в образе). Команды: `make build-prod`, `make up-prod`. Документация: `documents/deployment.md`.
+
+Эндпоинт мониторинга: `GET /health` → `{"status":"ok"}`.
+
+Deploy на VPS: `make update-prod-code`, документация `documents/update_prod.md`, workflow `.github/workflows/deploy.yml` (manual).
+
 ## Миграции
 
 Только через Django migrations (`main/migrations/`). После изменения моделей — `makemigrations` + `migrate`; на prod — без интерактива, с учётом nullable FK.

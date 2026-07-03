@@ -31,6 +31,7 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
+    "whitenoise.middleware.WhiteNoiseMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
@@ -121,3 +122,5 @@ WEATHER_PARSER = {
 
 CSV_DELIMITER = settings.csv_delimiter
 STATIC_DATA_PATH = BASE_DIR / settings.static_data_path
+
+WHITENOISE_USE_FINDERS = DEBUG

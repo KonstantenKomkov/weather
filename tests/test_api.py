@@ -23,3 +23,9 @@ def test_schema_endpoint(client):
 def test_health_like_root(client):
     response = client.get("/api/docs/")
     assert response.status_code == 200
+
+
+def test_health_endpoint(client):
+    response = client.get("/health")
+    assert response.status_code == 200
+    assert response.json() == {"status": "ok"}

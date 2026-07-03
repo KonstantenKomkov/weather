@@ -8,9 +8,7 @@ services:
       POSTGRES_USER: ${POSTGRES_USER:-weather_user}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-weather_password}
     volumes:
-      - ${POSTGRES_DATA_PATH:-./.docker/postgres_data}:/var/lib/postgresql/data
-    ports:
-      - "5433:5432"
+      - ${POSTGRES_DATA_PATH:-./data/postgres}:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-weather_user} -d ${POSTGRES_DB:-weather_db}"]
       interval: 10s
@@ -21,8 +19,9 @@ services:
     image: redis:7-alpine
     container_name: weather_redis
     restart: unless-stopped
-    ports:
-      - "6380:6379"
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redis_data:/data
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s
@@ -33,63 +32,52 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-      target: dev
+      target: prod
+    image: weather-app
     container_name: weather_web
     restart: unless-stopped
-    command:
-      [
-        "sh",
-        "/app/docker-entrypoint.sh",
-        "gunicorn",
-        "weather.wsgi:application",
-        "--bind",
-        "0.0.0.0:8000",
-        "--reload",
-      ]
     env_file:
       - .env
+    environment:
+      DEBUG: "false"
+      COLLECT_STATIC: "1"
     ports:
-      - "8000:8000"
+      - "127.0.0.1:8000:8000"
     depends_on:
       db:
         condition: service_healthy
       redis:
         condition: service_healthy
-    volumes:
-      - .:/app
 
   celery:
-    build:
-      context: .
-      dockerfile: Dockerfile
-      target: dev
+    image: weather-app
     container_name: weather_celery
     restart: unless-stopped
-    command: ["sh", "/app/docker-entrypoint.sh", "celery", "-A", "weather", "worker", "-l", "info"]
+    command: ["sh", "/app/docker-entrypoint-prod.sh", "celery", "-A", "weather", "worker", "-l", "info"]
     env_file:
       - .env
+    environment:
+      DEBUG: "false"
     depends_on:
       db:
         condition: service_healthy
       redis:
         condition: service_healthy
-    volumes:
-      - .:/app
 
   celery-beat:
-    build:
-      context: .
-      dockerfile: Dockerfile
-      target: dev
+    image: weather-app
     container_name: weather_celery_beat
     restart: unless-stopped
-    command: ["sh", "/app/docker-entrypoint.sh", "celery", "-A", "weather", "beat", "-l", "info"]
+    command: ["sh", "/app/docker-entrypoint-prod.sh", "celery", "-A", "weather", "beat", "-l", "info"]
     env_file:
       - .env
+    environment:
+      DEBUG: "false"
     depends_on:
       db:
         condition: service_healthy
       redis:
         condition: service_healthy
-    volumes:
-      - .:/app
+
+volumes:
+  redis_data:

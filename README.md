@@ -57,6 +57,15 @@ make frontend-dev      # http://localhost:5173 (API проксируется н�
 make frontend-build    # перед деплоем — собрать mainapp/build/
 ```
 
+## Production
+
+```bash
+make build-prod
+make up-prod
+```
+
+Подробнее: [documents/deployment.md](documents/deployment.md)
+
 Parser work with csv file (cities.csv) with 3 required parameters:  
 - city name (maybe place name);
 - link on rp5 site page with that city or place;
