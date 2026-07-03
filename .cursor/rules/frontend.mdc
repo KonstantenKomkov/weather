@@ -1,0 +1,36 @@
+---
+description: React frontend (Vite) conventions
+globs: mainapp/**/*
+alwaysApply: false
+---
+
+# Frontend (mainapp)
+
+## Stack
+
+React 18 · Vite 6 · axios. Сборка → `mainapp/build/` (Django отдаёт `index.html` и `/static/assets/*`).
+
+## Команды
+
+```bash
+make frontend-install   # npm ci
+make frontend-dev       # :5173, proxy /api → :8000
+make frontend-build     # production build
+```
+
+Перед деплоем Django: `make frontend-build`, затем перезапуск web.
+
+## API
+
+- Запросы к backend — **относительные** URL (`/api/weather_stations/`), не хардкод `127.0.0.1`.
+- В dev Vite проксирует `/api` и `/admin` на Django.
+
+## Файлы
+
+- Точка входа: `index.html` (корень mainapp), `src/main.jsx`, `src/App.jsx`.
+- Статика: `public/` (manifest, robots, favicon).
+- `base: '/static/'` в `vite.config.js` — не менять без синхронизации с Django `STATIC_URL`.
+
+## Не использовать
+
+- Create React App (`react-scripts`) — проект мигрирован на Vite.

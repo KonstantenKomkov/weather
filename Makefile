@@ -1,4 +1,4 @@
-.PHONY: help build up down restart logs logs-web logs-db ps shell db-shell migrate test lint format get-weather clear-cities clean env
+.PHONY: help build up down restart logs logs-web logs-db ps shell db-shell migrate test lint format get-weather clear-cities clean env frontend-install frontend-dev frontend-build ci
 
 DOCKER_COMPOSE = docker compose
 WEB_SERVICE = web
@@ -22,6 +22,10 @@ help:
 	@echo "  make test             — pytest"
 	@echo "  make lint             — ruff check"
 	@echo "  make format           — ruff format"
+	@echo "  make ci               — lint + pytest (как в GitHub Actions)"
+	@echo "  make frontend-install — npm ci в mainapp/"
+	@echo "  make frontend-dev     — Vite dev-сервер (прокси /api → :8000)"
+	@echo "  make frontend-build   — production-сборка React → mainapp/build/"
 	@echo "  make get-weather      — запустить парсер rp5.ru"
 	@echo "  make clear-cities     — очистить cities.txt"
 	@echo "  make clean            — удалить контейнеры и тома"
@@ -72,6 +76,19 @@ lint:
 
 format:
 	$(DOCKER_COMPOSE) exec $(WEB_SERVICE) ruff format .
+
+ci:
+	$(DOCKER_COMPOSE) exec $(WEB_SERVICE) ruff check .
+	$(DOCKER_COMPOSE) exec $(WEB_SERVICE) pytest -q
+
+frontend-install:
+	cd mainapp && npm ci
+
+frontend-dev:
+	cd mainapp && npm run dev
+
+frontend-build:
+	cd mainapp && npm ci && npm run build
 
 get-weather:
 	$(DOCKER_COMPOSE) exec $(WEB_SERVICE) python manage.py get_weather

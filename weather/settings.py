@@ -84,8 +84,8 @@ USE_TZ = True
 
 STATIC_URL = "/static/"
 STATIC_ROOT = BASE_DIR / "static"
-_build_static = BASE_DIR / "mainapp/build/static"
-STATICFILES_DIRS = (_build_static,) if _build_static.exists() else ()
+_build_dir = BASE_DIR / "mainapp/build"
+STATICFILES_DIRS = (_build_dir,) if _build_dir.exists() else ()
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 

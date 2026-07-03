@@ -36,6 +36,14 @@ Django 4.2 LTS · DRF · Celery · PostgreSQL 16 · Redis 7 · Docker · Python 
 
 OpenAPI: drf-spectacular — `/api/docs/`, схема `/api/schema/`.
 
+## Frontend
+
+React 18 + Vite в `mainapp/`. Сборка: `make frontend-build` → `mainapp/build/`. Dev: `make frontend-dev` (:5173).
+
+## CI
+
+GitHub Actions: `.github/workflows/ci.yml` — ruff, pytest, `npm run build`. Локально: `make ci`.
+
 ## Миграции
 
 Только через Django migrations (`main/migrations/`). После изменения моделей — `makemigrations` + `migrate`; на prod — без интерактива, с учётом nullable FK.

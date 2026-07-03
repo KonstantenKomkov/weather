@@ -49,6 +49,14 @@ make logs-web
 
 Configuration is stored in `.env` (see `.env.example`). Legacy `config.ini` is no longer used.
 
+## Frontend (React + Vite)
+
+```bash
+make frontend-install
+make frontend-dev      # http://localhost:5173 (API проксируется на :8000)
+make frontend-build    # перед деплоем — собрать mainapp/build/
+```
+
 Parser work with csv file (cities.csv) with 3 required parameters:  
 - city name (maybe place name);
 - link on rp5 site page with that city or place;
